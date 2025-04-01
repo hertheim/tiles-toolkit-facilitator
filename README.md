@@ -62,8 +62,8 @@ This digital ideation tool is integrated with the physical Tiles Toolkit, design
 
 1. Clone the repository
    ```
-   git clone https://github.com/yourusername/tiles-ideation-app.git
-   cd tiles-ideation-app
+   git clone https://github.com/hertheim/tiles-toolkit-facilitator.git
+   cd tiles-toolkit-facilitator
    ```
 
 2. Install dependencies
