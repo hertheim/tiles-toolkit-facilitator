@@ -1,36 +1,129 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tiles Ideation Application
+
+AI-Facilitated Tiles Ideation Application for creative workshops, ideation sessions, and collaborative design thinking.
+
+## Overview
+
+This digital ideation tool is integrated with the physical Tiles Toolkit, designed to facilitate creativity, idea refinement, and structured evaluation through AI-supported facilitation. The primary goal is to streamline group ideation sessions, enhance participant engagement, and generate impactful ideas.
+
+## Features
+
+### Workshop Management
+
+- Create and manage creative workshops with customizable missions, personas, and scenarios
+- Organize and track ideas across multiple workshop sessions
+- Intuitive interface for facilitators and participants
+
+### Four-Phase Ideation Process
+
+#### 1. Idea Generation & Overview
+
+- Visually select cards from predefined categories: Things, Sensors, Human Actions, Feedback, Services
+- Create and manage multiple ideas based on card combinations
+- Quick overview dashboard of all generated ideas
+
+#### 2. Idea Refinement & Chat
+
+- Interactive AI chat interface for idea refinement using Mistral AI
+- Use commands like `/reflect`, `/creative`, and `/provoke` to get different types of AI feedback
+- AI suggests alternative cards and approaches to expand thinking
+- All interactions automatically saved as refinements
+- Persistent chat history tied to each idea
+
+#### 3. Storyboard Development
+
+- Visualize ideas through an 8-step storyboard
+- AI-generated storyboards based on chosen cards
+- Drag-and-drop reordering of storyboard steps
+- Customizable description for each step
+
+#### 4. Criteria-based Evaluation & Elevator Pitch
+
+- Evaluate ideas against key criteria like Sustainability, Feasibility, etc.
+- AI-generated elevator pitch to clearly articulate ideas
+- Structured format helps ensure thorough evaluation
+
+## Technology Stack
+
+- **Frontend**: Next.js, TypeScript, React, Tailwind CSS
+- **UI Components**: Shadcn UI
+- **State Management**: React Context API
+- **Data Storage**: Local browser storage (for MVP)
+- **AI Integration**: [Ollama](https://ollama.ai/) with the Mistral:Instruct model
+
+## Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- [Ollama](https://ollama.ai/) installed locally
+- Mistral:Instruct model pulled in Ollama (`ollama pull mistral:instruct`)
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository
+   ```
+   git clone https://github.com/yourusername/tiles-ideation-app.git
+   cd tiles-ideation-app
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2. Install dependencies
+   ```
+   npm install
+   # or
+   yarn install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Make sure Ollama is running with the Mistral:Instruct model
+   ```
+   # In a separate terminal
+   ollama serve
+   
+   # If you haven't already, pull the model
+   ollama pull mistral:instruct
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4. Run the development server
+   ```
+   npm run dev
+   # or
+   yarn dev
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5. Open [http://localhost:3000](http://localhost:3000) with your browser
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+1. Create a new workshop from the homepage
+2. Select a mission, persona, and scenario to frame your ideation
+3. Generate ideas using the card selection interface
+4. Refine ideas through AI-guided chat
+   - Use `/reflect` to get reflective questions
+   - Use `/creative` to get alternative card suggestions
+   - Use `/provoke` to challenge your assumptions
+5. Create a storyboard to visualize the user journey
+6. Evaluate ideas against criteria and generate an elevator pitch
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The application can be deployed on platforms like Vercel, Netlify, or as a static site. For AI integration, you'll need to:
 
-## Deploy on Vercel
+1. Set up an AI API endpoint (such as Ollama Cloud or running Ollama on a server)
+2. Update the API URLs in the application
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Future Improvements
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Integration with cloud-based AI models for wider accessibility
+- User authentication and cloud storage
+- Collaborative features for real-time group ideation
+- Export functionality for ideas and storyboards
+- Mobile optimization for tablet use during workshops
+
+## License
+
+[MIT](LICENSE)
+
+## Acknowledgements
+
+- [Tiles Toolkit](https://www.tilestoolkit.io/) for providing the original physical card system
+- [Shadcn UI](https://ui.shadcn.com/) for UI components
+- [Ollama](https://ollama.ai/) for local AI model hosting
