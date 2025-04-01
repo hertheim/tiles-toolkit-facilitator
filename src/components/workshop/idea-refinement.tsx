@@ -4,16 +4,16 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWorkshop } from '@/lib/workshop-context';
-import { Idea, Refinement, ChatMessage } from '@/types';
+import { Idea, Refinement, ChatMessage, Workshop } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import { ThingCard } from "@/data/things";
 import { SensorCard } from "@/data/sensors";
 import { ActionCard } from "@/data/actions";
-import { generateAIFeedback } from '@/lib/ollama-service';
+import { generateAIFeedback, generateWelcomeMessage } from '@/lib/ollama-service';
 import { parseCardSuggestions } from '@/lib/parse-suggestions';
 
 // Generate AI feedback using Ollama with mistral:instruct
-const generateAIResponse = async (command: string, idea: Idea): Promise<ChatMessage> => {
+const generateAIResponse = async (command: string, idea: Idea, workshop: Workshop | null): Promise<ChatMessage> => {
   // Base message structure
   const message: ChatMessage = {
     id: uuidv4(),
@@ -26,7 +26,7 @@ const generateAIResponse = async (command: string, idea: Idea): Promise<ChatMess
   const lowerCommand = command.toLowerCase();
   
   try {
-    const response = await generateAIFeedback(command, idea);
+    const response = await generateAIFeedback(command, idea, workshop || undefined);
     message.content = response;
     
     if (lowerCommand.startsWith('/reflect')) {
@@ -62,43 +62,94 @@ const generateAIResponse = async (command: string, idea: Idea): Promise<ChatMess
 };
 
 export function IdeaRefinement() {
-  const { currentIdea, updateIdea } = useWorkshop();
+  const { currentIdea, currentWorkshop, updateIdea } = useWorkshop();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isGeneratingWelcome, setIsGeneratingWelcome] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Initialize messages from idea's chat history or create welcome message
   useEffect(() => {
-    if (currentIdea) {
-      if (currentIdea.chatHistory && currentIdea.chatHistory.length > 0) {
-        // Load chat history from the idea
-        setMessages(currentIdea.chatHistory);
-      } else if (messages.length === 0) {
-        // Create a welcome message if no chat history exists
-        const welcomeMessage: ChatMessage = {
-          id: uuidv4(),
-          type: 'system',
-          content: `Welcome to the Idea Refinement chat! I'll help you refine your idea "${currentIdea.title}" through interactive feedback powered by Mistral AI.
+    const initializeChat = async () => {
+      if (currentIdea) {
+        if (currentIdea.chatHistory && currentIdea.chatHistory.length > 0) {
+          // Load chat history from the idea
+          setMessages(currentIdea.chatHistory);
+        } else if (!isGeneratingWelcome) {
+          setIsGeneratingWelcome(true);
+          
+          try {
+            // Show a loading message
+            const loadingMessage: ChatMessage = {
+              id: 'loading',
+              type: 'system',
+              content: 'Generating AI welcome message...',
+              timestamp: new Date(),
+            };
+            setMessages([loadingMessage]);
+            
+            // Generate AI welcome message
+            let welcomeContent = '';
+            
+            if (currentWorkshop) {
+              welcomeContent = await generateWelcomeMessage(currentIdea, currentWorkshop);
+            } else {
+              // Fallback if workshop context is not available
+              welcomeContent = `Welcome to the Idea Refinement chat! I'll help you refine your idea "${currentIdea.title}" through interactive feedback.
+
+Try these commands:
+- Type **/reflect** for reflective questions
+- Type **/creative** for alternative approaches
+- Type **/provoke** to challenge assumptions
+- Type **/help** for more information`;
+            }
+            
+            // Create the welcome message
+            const welcomeMessage: ChatMessage = {
+              id: uuidv4(),
+              type: 'ai',
+              content: welcomeContent,
+              timestamp: new Date(),
+              action: 'info'
+            };
+            
+            // Update messages and save to idea
+            setMessages([welcomeMessage]);
+            updateIdea(currentIdea.id, { 
+              chatHistory: [welcomeMessage]
+            });
+          } catch (error) {
+            console.error('Failed to generate welcome message:', error);
+            
+            // Fallback message if AI fails
+            const fallbackMessage: ChatMessage = {
+              id: uuidv4(),
+              type: 'system',
+              content: `Welcome to the Idea Refinement chat! I'll help you refine your idea "${currentIdea.title}" through interactive feedback.
 
 Try these commands:
 - Type **/reflect** for reflective questions
 - Type **/creative** for alternative approaches
 - Type **/provoke** to challenge assumptions
 - Type **/help** for more information`,
-          timestamp: new Date(),
-          action: 'info'
-        };
-        
-        setMessages([welcomeMessage]);
-        
-        // Save the welcome message to the idea's chat history
-        updateIdea(currentIdea.id, { 
-          chatHistory: [welcomeMessage]
-        });
+              timestamp: new Date(),
+              action: 'info'
+            };
+            
+            setMessages([fallbackMessage]);
+            updateIdea(currentIdea.id, { 
+              chatHistory: [fallbackMessage] 
+            });
+          } finally {
+            setIsGeneratingWelcome(false);
+          }
+        }
       }
-    }
-  }, [currentIdea, messages.length, updateIdea]);
+    };
+    
+    initializeChat();
+  }, [currentIdea, currentWorkshop, updateIdea, isGeneratingWelcome]);
   
   // Scroll to bottom of chat on new messages
   useEffect(() => {
@@ -150,7 +201,7 @@ Try these commands:
       setMessages(prev => [...prev, typingMessage]);
       
       // Get AI response from Ollama
-      const aiResponse = await generateAIResponse(inputValue, currentIdea);
+      const aiResponse = await generateAIResponse(inputValue, currentIdea, currentWorkshop);
       
       // Remove typing indicator and add real response
       const messagesWithResponse = [...updatedMessages, aiResponse];
@@ -299,13 +350,13 @@ Try these commands:
       {/* Input form */}
       <form onSubmit={handleSendMessage} className="flex gap-2">
         <Input
-          placeholder={isProcessing ? "AI is thinking..." : "Type a message or command (e.g., /reflect, /creative)"}
+          placeholder={isProcessing || isGeneratingWelcome ? "AI is thinking..." : "Type a message or command (e.g., /reflect, /creative)"}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          disabled={isProcessing}
+          disabled={isProcessing || isGeneratingWelcome}
           className="flex-1"
         />
-        <Button type="submit" disabled={isProcessing}>
+        <Button type="submit" disabled={isProcessing || isGeneratingWelcome}>
           Send
         </Button>
       </form>

@@ -1,4 +1,4 @@
-import { Idea } from '@/types';
+import { Idea, Workshop } from '@/types';
 
 const OLLAMA_API_URL = 'http://localhost:11434/api/generate';
 const MODEL_NAME = 'mistral:instruct';
@@ -15,11 +15,88 @@ interface OllamaError {
 }
 
 /**
+ * Generate a welcome message for a new idea using the workshop context
+ */
+export const generateWelcomeMessage = async (
+  idea: Idea,
+  workshop: Workshop
+): Promise<string> => {
+  const thingName = idea.cardCombination.thing?.name || 'product';
+  const sensorName = idea.cardCombination.sensor?.name || 'sensor';
+  const actionName = idea.cardCombination.action?.name || 'action';
+  const feedbackName = idea.cardCombination.feedback?.name || 'feedback';
+  const serviceName = idea.cardCombination.service?.name || 'service';
+  
+  const prompt = `You are an AI assistant helping with a design thinking workshop. The workshop details are:
+
+Workshop Name: "${workshop.name}"
+Workshop Description: "${workshop.description}"
+Mission: "${workshop.mission?.name} - ${workshop.mission?.goal}"
+Persona: "${workshop.persona?.name} - ${workshop.persona?.description}"
+Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
+
+The participants have created a new idea with the following components:
+- Thing: ${thingName}
+- Sensor: ${sensorName}
+- Action: ${actionName}
+- Feedback: ${feedbackName}
+- Service: ${serviceName}
+
+Idea Title: "${idea.title}"
+Idea Description: "${idea.description}"
+
+Please generate a welcoming first message that:
+1. Acknowledges their idea and its components
+2. References the workshop context (mission, persona, scenario) 
+3. Briefly explains how you can help them refine this idea
+4. Mentions the available commands (/reflect, /creative, /provoke, /help)
+
+Keep your response conversational, encouraging, and under 200 words.`;
+
+  try {
+    const response = await fetch(OLLAMA_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        prompt: prompt,
+        stream: false,
+        options: {
+          temperature: 0.7,
+          top_p: 0.9,
+        }
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json() as OllamaError;
+      throw new Error(`Ollama API error: ${errorData.error || response.statusText}`);
+    }
+    
+    const data = await response.json() as OllamaResponse;
+    return data.response;
+  } catch (error) {
+    console.error('Error generating welcome message:', error);
+    // Fallback message if AI fails
+    return `Welcome to the Idea Refinement chat! I'll help you refine your idea "${idea.title}" through interactive feedback.
+
+Try these commands:
+- Type **/reflect** for reflective questions
+- Type **/creative** for alternative approaches
+- Type **/provoke** to challenge assumptions
+- Type **/help** for more information`;
+  }
+};
+
+/**
  * Generate AI feedback using Ollama with the mistral:instruct model
  */
 export const generateAIFeedback = async (
   command: string, 
-  idea: Idea
+  idea: Idea,
+  workshop?: Workshop
 ): Promise<string> => {
   // Construct idea description from card combination
   const thingName = idea.cardCombination.thing?.name || 'product';
@@ -28,12 +105,21 @@ export const generateAIFeedback = async (
   const feedbackName = idea.cardCombination.feedback?.name || 'feedback';
   const serviceName = idea.cardCombination.service?.name || 'service';
   
+  // Add workshop context if available
+  const workshopContext = workshop ? `
+Workshop Name: "${workshop.name}"
+Workshop Description: "${workshop.description}"
+Mission: "${workshop.mission?.name} - ${workshop.mission?.goal}"
+Persona: "${workshop.persona?.name} - ${workshop.persona?.description}"
+Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
+` : '';
+  
   // Craft an appropriate prompt based on the command
   let prompt = '';
   const lowerCommand = command.toLowerCase();
   
   if (lowerCommand.startsWith('/reflect')) {
-    prompt = `You are an AI assistant helping with a design thinking workshop. The participants have created an idea combining these elements:
+    prompt = `You are an AI assistant helping with a design thinking workshop. ${workshopContext}The participants have created an idea combining these elements:
     - Thing: ${thingName} 
     - Sensor: ${sensorName}
     - Action: ${actionName}
@@ -43,10 +129,10 @@ export const generateAIFeedback = async (
     The idea title is: "${idea.title}"
     Description: "${idea.description}"
     
-    Please provide 5-6 reflective questions that will help them think more deeply about their idea. Focus on feasibility, user benefits, implementation challenges, and potential improvements. Make your questions specific to their idea components.`;
+    Please provide 5-6 reflective questions that will help them think more deeply about their idea. Focus on feasibility, user benefits, implementation challenges, and potential improvements. Make your questions specific to their idea components and relevant to the workshop context.`;
   } 
   else if (lowerCommand.startsWith('/creative')) {
-    prompt = `You are an AI assistant helping with a design thinking workshop. The participants have created an idea combining these elements:
+    prompt = `You are an AI assistant helping with a design thinking workshop. ${workshopContext}The participants have created an idea combining these elements:
     - Thing: ${thingName} 
     - Sensor: ${sensorName}
     - Action: ${actionName}
@@ -56,15 +142,15 @@ export const generateAIFeedback = async (
     The idea title is: "${idea.title}"
     Description: "${idea.description}"
     
-    Please suggest alternative approaches to their idea. Specifically:
+    Please suggest alternative approaches to their idea that align with the workshop context. Specifically:
     1. Suggest 2 alternative "things" they could use
     2. Suggest 2 alternative "sensors" they could incorporate
     3. Suggest 1-2 ways to combine these alternatives to expand or enhance their original idea
     
-    Be specific and creative in your suggestions, explaining how they could enhance the core concept.`;
+    Be specific and creative in your suggestions, explaining how they could enhance the core concept while staying true to the workshop mission and persona needs.`;
   } 
   else if (lowerCommand.startsWith('/provoke')) {
-    prompt = `You are an AI assistant helping with a design thinking workshop. The participants have created an idea combining these elements:
+    prompt = `You are an AI assistant helping with a design thinking workshop. ${workshopContext}The participants have created an idea combining these elements:
     - Thing: ${thingName} 
     - Sensor: ${sensorName}
     - Action: ${actionName}
@@ -80,6 +166,7 @@ export const generateAIFeedback = async (
     - Unintended consequences
     - User confusion or misuse
     - Edge cases or accessibility issues
+    - Alignment with the workshop mission and persona needs
     
     Make your questions specific to their idea components and help them identify blind spots.`;
   }
@@ -96,7 +183,7 @@ You can also just chat normally without using commands.`;
   }
   else {
     // General response to user message
-    prompt = `You are an AI assistant helping with a design thinking workshop. The participants have created an idea combining these elements:
+    prompt = `You are an AI assistant helping with a design thinking workshop. ${workshopContext}The participants have created an idea combining these elements:
     - Thing: ${thingName} 
     - Sensor: ${sensorName}
     - Action: ${actionName}
@@ -108,7 +195,7 @@ You can also just chat normally without using commands.`;
     
     The user has sent this message: "${command}"
     
-    Please respond to their message, keeping your response focused on their idea. Be helpful, encouraging, and constructive. If appropriate, remind them they can use commands like /reflect, /creative, or /provoke for specific types of feedback.`;
+    Please respond to their message, keeping your response focused on their idea and the context of their workshop. Be helpful, encouraging, and constructive. If appropriate, remind them they can use commands like /reflect, /creative, or /provoke for specific types of feedback.`;
   }
   
   try {
