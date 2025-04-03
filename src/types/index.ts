@@ -57,6 +57,11 @@ export interface Idea {
     action?: ActionCard;
     feedback?: FeedbackCard;
     service?: ServiceCard;
+    thingCards?: ThingCard[];
+    sensorCards?: SensorCard[];
+    actionCards?: ActionCard[];
+    feedbackCards?: FeedbackCard[];
+    serviceCards?: ServiceCard[];
   };
   refinements: Refinement[];
   chatHistory?: ChatMessage[];
