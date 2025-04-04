@@ -9,6 +9,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { ThingCard } from "@/data/things";
 import { SensorCard } from "@/data/sensors";
 import { ActionCard } from "@/data/actions";
+import { FeedbackCard } from "@/data/feedback";
+import { ServiceCard } from "@/data/services";
 import { generateAIFeedback, generateWelcomeMessage } from '@/lib/ollama-service';
 import { parseCardSuggestions } from '@/lib/parse-suggestions';
 
@@ -67,7 +69,112 @@ export function IdeaRefinement() {
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGeneratingWelcome, setIsGeneratingWelcome] = useState(false);
+  const [previousCardCombination, setPreviousCardCombination] = useState<{
+    thing?: ThingCard;
+    sensor?: SensorCard;
+    action?: ActionCard;
+    feedback?: FeedbackCard;
+    service?: ServiceCard;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Track card changes to detect edits in the ideation phase
+  useEffect(() => {
+    if (!currentIdea) return;
+    
+    // Initialize previous card combination on first load
+    if (!previousCardCombination) {
+      setPreviousCardCombination(currentIdea.cardCombination);
+      return;
+    }
+    
+    // Check if card combination has changed
+    const hasCardCombinationChanged = () => {
+      if (!previousCardCombination) return false;
+      
+      const cardTypes = ['thing', 'sensor', 'action', 'feedback', 'service'] as const;
+      
+      return cardTypes.some(type => {
+        const prevCard = previousCardCombination[type];
+        const currentCard = currentIdea.cardCombination[type];
+        
+        // Check if one exists and the other doesn't
+        if ((!prevCard && currentCard) || (prevCard && !currentCard)) return true;
+        
+        // Check if both exist but have different IDs
+        if (prevCard && currentCard && prevCard.id !== currentCard.id) return true;
+        
+        return false;
+      });
+    };
+    
+    if (hasCardCombinationChanged() && currentIdea.chatHistory && currentIdea.chatHistory.length > 0) {
+      // Add a system message about the card change
+      const changedCardMessage: ChatMessage = {
+        id: uuidv4(),
+        type: 'system',
+        content: 'Card combination has been updated. The AI will consider these changes.',
+        timestamp: new Date(),
+      };
+      
+      // Send AI a message to acknowledge the changes
+      const notifyAI = async () => {
+        setIsProcessing(true);
+        
+        // Create difference description
+        const getChangeSummary = () => {
+          const changes: string[] = [];
+          const cardTypes = ['thing', 'sensor', 'action', 'feedback', 'service'] as const;
+          
+          cardTypes.forEach(type => {
+            const prevCard = previousCardCombination[type];
+            const currentCard = currentIdea.cardCombination[type];
+            
+            if (!prevCard && currentCard) {
+              changes.push(`Added ${type}: ${currentCard.name}`);
+            } else if (prevCard && !currentCard) {
+              changes.push(`Removed ${type}: ${prevCard.name}`);
+            } else if (prevCard && currentCard && prevCard.id !== currentCard.id) {
+              changes.push(`Changed ${type}: from ${prevCard.name} to ${currentCard.name}`);
+            }
+          });
+          
+          return changes.join(', ');
+        };
+        
+        try {
+          // Generate AI response acknowledging the changes
+          const aiResponse = await generateAIResponse(
+            `The idea's card combination has been updated: ${getChangeSummary()}`, 
+            currentIdea, 
+            currentWorkshop
+          );
+          
+          // Add both messages to the chat
+          const updatedMessages = [...messages, changedCardMessage, aiResponse];
+          setMessages(updatedMessages);
+          
+          // Save to idea
+          updateIdea(currentIdea.id, {
+            chatHistory: updatedMessages
+          });
+        } catch (error) {
+          console.error('Failed to notify AI about card changes:', error);
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      
+      notifyAI();
+      
+      // Update the previous card combination
+      setPreviousCardCombination(currentIdea.cardCombination);
+    } else if (hasCardCombinationChanged()) {
+      // Just update the previous card combination without adding messages
+      // (this happens for the first load or if there's no chat history yet)
+      setPreviousCardCombination(currentIdea.cardCombination);
+    }
+  }, [currentIdea, currentWorkshop, messages, updateIdea, previousCardCombination]);
   
   // Initialize messages from idea's chat history or create welcome message
   useEffect(() => {
