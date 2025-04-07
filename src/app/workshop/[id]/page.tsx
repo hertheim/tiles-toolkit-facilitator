@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -112,6 +112,9 @@ export default function WorkshopPage() {
   const params = useParams();
   const router = useRouter();
   
+  // Add isEditingIdea state to track when we're editing vs creating
+  const [isEditingIdea, setIsEditingIdea] = useState(false);
+  
   // Load the workshop
   useEffect(() => {
     // Extract the workshop ID from the URL
@@ -135,26 +138,111 @@ export default function WorkshopPage() {
   const workshopIdeas = ideas.filter(idea => idea.workshopId === currentWorkshop?.id);
   
   // Handle creating a new idea
-  const handleCreateIdea = (cardCombination: Record<string, CardType>) => {
+  const handleCreateIdea = (cardCombination: Record<string, CardType | CardType[]>) => {
     if (!currentWorkshop) return;
     
-    const thingName = cardCombination.thing?.name;
-    const sensorName = cardCombination.sensor?.name;
+    // Only update if we're explicitly in edit mode
+    if (isEditingIdea && currentIdea) {
+      // Generate updated title and description based on new card combination
+      const primaryThingName = cardCombination.thing && (cardCombination.thing as CardType).name;
+      const primarySensorName = cardCombination.sensor && (cardCombination.sensor as CardType).name;
+      
+      // Generate title based on card combination
+      let title = currentIdea.title;
+      if (primaryThingName && primarySensorName) {
+        title = `${primaryThingName} with ${primarySensorName}`;
+      } else if (primaryThingName) {
+        title = `${primaryThingName}`;
+      } else if (primarySensorName) {
+        title = `${primarySensorName}`;
+      }
+      
+      // Get all selected cards for description
+      const allCards: CardType[] = [];
+      
+      // Add individual cards
+      if (cardCombination.thing) allCards.push(cardCombination.thing as CardType);
+      if (cardCombination.sensor) allCards.push(cardCombination.sensor as CardType);
+      if (cardCombination.action) allCards.push(cardCombination.action as CardType);
+      if (cardCombination.feedback) allCards.push(cardCombination.feedback as CardType);
+      if (cardCombination.service) allCards.push(cardCombination.service as CardType);
+      
+      // Generate description based on all cards
+      const description = allCards.length > 0
+        ? `An idea using ${allCards.map(card => card.name).join(', ')}`
+        : currentIdea.description;
+      
+      // Update the existing idea with the new card combination and metadata
+      workshop.updateIdea(currentIdea.id, {
+        cardCombination: cardCombination as {
+          thing?: CardType;
+          sensor?: CardType;
+          action?: CardType;
+          feedback?: CardType;
+          service?: CardType;
+          thingCards?: CardType[];
+          sensorCards?: CardType[];
+          actionCards?: CardType[];
+          feedbackCards?: CardType[];
+          serviceCards?: CardType[];
+        },
+        title,
+        description
+      });
+      
+      toast.success('Idea updated');
+      
+      // Move to the next phase if we're in ideation
+      if (currentPhase === 'ideation') {
+        setCurrentPhase('refinement');
+      }
+      return;
+    }
+    
+    // Create a new idea
+    const primaryThingName = cardCombination.thing && (cardCombination.thing as CardType).name;
+    const primarySensorName = cardCombination.sensor && (cardCombination.sensor as CardType).name;
     
     // Generate title based on card combination or use generic title
-    const title = thingName && sensorName 
-      ? `${thingName} with ${sensorName}`
-      : `New Idea ${workshopIdeas.length + 1}`;
+    let title = `New Idea ${workshopIdeas.length + 1}`;
+    if (primaryThingName && primarySensorName) {
+      title = `${primaryThingName} with ${primarySensorName}`;
+    } else if (primaryThingName) {
+      title = `${primaryThingName}`;
+    } else if (primarySensorName) {
+      title = `${primarySensorName}`;
+    }
     
-    // Generate description based on card combination
-    const description = Object.values(cardCombination).length > 0
-      ? `An idea using ${Object.values(cardCombination).map((card) => card?.name).filter(Boolean).join(', ')}`
+    // Get all selected cards for description
+    const allCards: CardType[] = [];
+    
+    // Add individual cards
+    if (cardCombination.thing) allCards.push(cardCombination.thing as CardType);
+    if (cardCombination.sensor) allCards.push(cardCombination.sensor as CardType);
+    if (cardCombination.action) allCards.push(cardCombination.action as CardType);
+    if (cardCombination.feedback) allCards.push(cardCombination.feedback as CardType);
+    if (cardCombination.service) allCards.push(cardCombination.service as CardType);
+    
+    // Generate description based on all cards
+    const description = allCards.length > 0
+      ? `An idea using ${allCards.map(card => card.name).join(', ')}`
       : '';
     
     const newIdea = createIdea({
       title,
       description,
-      cardCombination,
+      cardCombination: cardCombination as {
+        thing?: CardType;
+        sensor?: CardType;
+        action?: CardType;
+        feedback?: CardType;
+        service?: CardType;
+        thingCards?: CardType[];
+        sensorCards?: CardType[];
+        actionCards?: CardType[];
+        feedbackCards?: CardType[];
+        serviceCards?: CardType[];
+      },
       refinements: [],
     });
     
@@ -197,10 +285,14 @@ export default function WorkshopPage() {
           <IdeasList 
             ideas={workshopIdeas} 
             currentIdea={currentIdea}
-            setCurrentIdea={setCurrentIdea}
+            setCurrentIdea={(idea) => {
+              setCurrentIdea(idea);
+              setIsEditingIdea(true);
+            }}
             onCreateNewIdea={() => {
               setCurrentPhase('ideation');
               setCurrentIdea(null);
+              setIsEditingIdea(false);
             }}
           />
         </div>
@@ -236,7 +328,11 @@ export default function WorkshopPage() {
             </TabsList>
             
             <TabsContent value="ideation">
-              <CardSelection onCombinationComplete={handleCreateIdea} />
+              <CardSelection 
+                onCombinationComplete={handleCreateIdea} 
+                initialCardCombination={isEditingIdea ? currentIdea?.cardCombination : undefined}
+                isEditing={isEditingIdea}
+              />
             </TabsContent>
             
             <TabsContent value="refinement">
