@@ -19,7 +19,7 @@ interface RemovedStep {
 }
 
 export function Storyboard() {
-  const { currentIdea, updateIdea } = useWorkshop();
+  const { currentIdea, updateIdea, currentWorkshop } = useWorkshop();
   const [isGenerating, setIsGenerating] = useState(false);
   const [storyboardSteps, setStoryboardSteps] = useState<StoryboardStep[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -79,7 +79,7 @@ export function Storyboard() {
     setError(null);
     
     try {
-      const stepDescriptions = await generateStoryboard(currentIdea);
+      const stepDescriptions = await generateStoryboard(currentIdea, currentWorkshop);
       
       const steps: StoryboardStep[] = stepDescriptions.map((description, index) => ({
         id: uuidv4(),
