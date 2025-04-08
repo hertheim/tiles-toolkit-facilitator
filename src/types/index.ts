@@ -112,7 +112,8 @@ export type WorkshopPhase =
   | 'ideation'   // Phase 1: Idea Generation & Overview
   | 'refinement' // Phase 2: Idea Refinement & Reflection
   | 'storyboard' // Phase 3: Storyboard Development
-  | 'evaluation'; // Phase 4: Criteria-based Evaluation & Elevator Pitch 
+  | 'evaluation' // Phase 4: Evaluation & Criteria
+  | 'elevator';  // Phase 5: Elevator Pitch
 
 export interface ThingCardRef {
   id: string;
