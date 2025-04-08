@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,7 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useWorkshop } from '@/lib/workshop-context';
 import { Idea, EvaluationCriteria } from '@/types';
 import { criteriaCards } from '@/data/criteria';
-import { v4 as uuidv4 } from 'uuid';
+import { useEvaluations } from '@/hooks/useEvaluations';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2 } from 'lucide-react';
 
 // Mock AI API for generating elevator pitch
 const mockGenerateElevatorPitch = async (idea: Idea) => {
@@ -25,54 +27,63 @@ const mockGenerateElevatorPitch = async (idea: Idea) => {
 
 export function Evaluation() {
   const { currentIdea, updateIdea } = useWorkshop();
+  const { evaluations, selectedCriteria, updateCriteriaResponses, updateSelectedCriteria } = useEvaluations();
   const [activeTab, setActiveTab] = useState<'criteria' | 'elevator'>('criteria');
-  const [selectedCriteria, setSelectedCriteria] = useState<string[]>([]);
-  const [criteriaResponses, setCriteriaResponses] = useState<{[key: string]: string}>({});
+  const [criteriaResponses, setCriteriaResponses] = useState<EvaluationCriteria[]>([]);
   const [elevatorPitch, setElevatorPitch] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Load existing evaluation data if available
   useEffect(() => {
-    if (currentIdea?.evaluation) {
-      const selectedIds = currentIdea.evaluation.criteria.map(c => c.criteriaCard.id);
-      setSelectedCriteria(selectedIds);
-      
-      const responses: {[key: string]: string} = {};
-      currentIdea.evaluation.criteria.forEach(c => {
-        responses[c.criteriaCard.id] = c.response;
-      });
-      setCriteriaResponses(responses);
+    if (currentIdea) {
+      const existingEvaluation = evaluations.find(e => e.ideaId === currentIdea.id);
+      if (existingEvaluation) {
+        setCriteriaResponses(existingEvaluation.criteria);
+      } else {
+        setCriteriaResponses(criteriaCards.map(card => ({
+          criteriaCard: card,
+          response: ''
+        })));
+      }
     }
     
     if (currentIdea?.elevatorPitch) {
       setElevatorPitch(currentIdea.elevatorPitch);
     }
-  }, [currentIdea]);
+  }, [currentIdea, evaluations]);
   
   if (!currentIdea) {
     return (
-      <div className="rounded-lg border p-8 text-center">
-        <h3 className="text-lg font-medium mb-2">No Idea Selected</h3>
-        <p className="text-muted-foreground">
-          Please select an idea from the dashboard to evaluate it.
-        </p>
-      </div>
+      <Alert>
+        <AlertDescription>Please select an idea to evaluate</AlertDescription>
+      </Alert>
     );
   }
   
   const handleCriteriaSelect = (criteriaId: string) => {
-    if (selectedCriteria.includes(criteriaId)) {
-      setSelectedCriteria(selectedCriteria.filter(id => id !== criteriaId));
+    const currentSelected = selectedCriteria[currentIdea.id] || [];
+    let newSelected: string[];
+    
+    if (currentSelected.includes(criteriaId)) {
+      newSelected = currentSelected.filter(id => id !== criteriaId);
+    } else if (currentSelected.length < 3) {
+      newSelected = [...currentSelected, criteriaId];
     } else {
-      setSelectedCriteria([...selectedCriteria, criteriaId]);
+      return;
     }
+    
+    updateSelectedCriteria(currentIdea.id, newSelected);
   };
   
-  const handleCriteriaResponse = (criteriaId: string, response: string) => {
-    setCriteriaResponses({
-      ...criteriaResponses,
-      [criteriaId]: response,
-    });
+  const handleResponseChange = (criteriaId: string, response: string) => {
+    const newResponses = criteriaResponses.map(criteria => 
+      criteria.criteriaCard.id === criteriaId 
+        ? { ...criteria, response }
+        : criteria
+    );
+    setCriteriaResponses(newResponses);
+    updateCriteriaResponses(currentIdea.id, newResponses);
   };
   
   const generateElevatorPitch = async () => {
@@ -80,6 +91,7 @@ export function Evaluation() {
     try {
       const pitch = await mockGenerateElevatorPitch(currentIdea);
       setElevatorPitch(pitch);
+      updateIdea(currentIdea.id, { elevatorPitch: pitch });
     } catch (error) {
       console.error('Failed to generate elevator pitch:', error);
     } finally {
@@ -87,51 +99,21 @@ export function Evaluation() {
     }
   };
   
-  const saveCriteriaEvaluation = () => {
-    if (selectedCriteria.length === 0) return;
-    
-    const evaluationCriteria: EvaluationCriteria[] = selectedCriteria
-      .filter(id => criteriaResponses[id]?.trim())
-      .map(id => {
-        const criteriaCard = criteriaCards.find(c => c.id === id);
-        if (!criteriaCard) throw new Error(`Criteria with id ${id} not found`);
-        
-        return {
-          criteriaCard,
-          response: criteriaResponses[id].trim(),
-        };
-      });
-    
-    if (evaluationCriteria.length === 0) return;
-    
-    updateIdea(currentIdea.id, {
-      evaluation: {
-        id: currentIdea.evaluation?.id || uuidv4(),
-        ideaId: currentIdea.id,
-        criteria: evaluationCriteria,
-        createdAt: currentIdea.evaluation?.createdAt || new Date(),
-        updatedAt: new Date(),
-      }
-    });
-  };
-  
-  const saveElevatorPitch = () => {
-    if (!elevatorPitch.trim()) return;
-    
-    updateIdea(currentIdea.id, {
-      elevatorPitch: elevatorPitch.trim(),
-    });
+  const handleElevatorPitchChange = (value: string) => {
+    setElevatorPitch(value);
+    updateIdea(currentIdea.id, { elevatorPitch: value });
   };
   
   return (
-    <div className="space-y-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">Evaluate: {currentIdea.title}</h2>
-        <p className="text-muted-foreground">
-          Assess your idea against key criteria and create a compelling elevator pitch.
-        </p>
-      </div>
-      
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Evaluation</h2>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <Tabs value={activeTab} onValueChange={(value) => {
         if (value === 'criteria' || value === 'elevator') {
           setActiveTab(value);
@@ -148,8 +130,10 @@ export function Evaluation() {
               <Card 
                 key={criteria.id}
                 className={`cursor-pointer transition-all ${
-                  selectedCriteria.includes(criteria.id) 
+                  (selectedCriteria[currentIdea.id] || []).includes(criteria.id) 
                     ? 'border-2 border-primary bg-primary/5' 
+                    : (selectedCriteria[currentIdea.id] || []).length >= 3
+                    ? 'opacity-50 cursor-not-allowed'
                     : 'hover:bg-muted/50'
                 }`}
                 onClick={() => handleCriteriaSelect(criteria.id)}
@@ -165,12 +149,17 @@ export function Evaluation() {
             ))}
           </div>
           
-          {selectedCriteria.length > 0 && (
+          {(selectedCriteria[currentIdea.id] || []).length > 0 && (
             <div className="border rounded-lg p-6 space-y-6">
-              <h3 className="text-lg font-medium">Respond to Selected Criteria</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Respond to Selected Criteria</h3>
+                <span className="text-sm text-muted-foreground">
+                  {(selectedCriteria[currentIdea.id] || []).length}/3 criteria selected
+                </span>
+              </div>
               
               <div className="space-y-4">
-                {selectedCriteria.map((criteriaId) => {
+                {(selectedCriteria[currentIdea.id] || []).map((criteriaId) => {
                   const criteria = criteriaCards.find(c => c.id === criteriaId);
                   if (!criteria) return null;
                   
@@ -181,8 +170,8 @@ export function Evaluation() {
                         <p className="text-sm text-muted-foreground">{criteria.question}</p>
                       </div>
                       <Textarea
-                        value={criteriaResponses[criteriaId] || ''}
-                        onChange={(e) => handleCriteriaResponse(criteriaId, e.target.value)}
+                        value={criteriaResponses.find(c => c.criteriaCard.id === criteriaId)?.response || ''}
+                        onChange={(e) => handleResponseChange(criteriaId, e.target.value)}
                         placeholder="Enter your evaluation for this criteria..."
                         rows={3}
                       />
@@ -190,10 +179,6 @@ export function Evaluation() {
                   );
                 })}
               </div>
-              
-              <Button onClick={saveCriteriaEvaluation}>
-                Save Criteria Evaluation
-              </Button>
             </div>
           )}
         </TabsContent>
@@ -220,7 +205,7 @@ export function Evaluation() {
                 <div className="space-y-4">
                   <Textarea
                     value={elevatorPitch}
-                    onChange={(e) => setElevatorPitch(e.target.value)}
+                    onChange={(e) => handleElevatorPitchChange(e.target.value)}
                     placeholder="Enter your elevator pitch..."
                     rows={6}
                   />
@@ -228,10 +213,6 @@ export function Evaluation() {
                   <div className="flex justify-between">
                     <Button variant="outline" onClick={generateElevatorPitch}>
                       Regenerate
-                    </Button>
-                    
-                    <Button onClick={saveElevatorPitch}>
-                      Save Elevator Pitch
                     </Button>
                   </div>
                 </div>
