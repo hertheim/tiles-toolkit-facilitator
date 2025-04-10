@@ -198,9 +198,12 @@ export default function Home() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-                <Button variant="outline" size="lg">
-                  Learn More
-                </Button>
+                <a href="https://www.tilestoolkit.io/" target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" size="lg">
+                    Tiles homepage
+                  </Button>
+                </a>
+
               </div>
             </div>
             <div className="relative h-[400px] flex items-center justify-center">

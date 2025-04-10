@@ -301,10 +301,21 @@ You can also just chat normally without using commands.
 /**
  * Generate storyboard steps using Ollama with the mistral:instruct model
  */
-export const generateStoryboard = async (idea: Idea): Promise<string[]> => {
+export const generateStoryboard = async (idea: Idea, workshop: Workshop | null | undefined): Promise<string[]> => {
   const selectedCards = getSelectedCardsList(idea);
   
-  const prompt = `You are an AI assistant helping with a design thinking workshop. The participants have created an idea with these elements:
+  // Add workshop context if available
+  const workshopContext = workshop ? `
+Workshop Name: "${workshop.name}"
+Workshop Description: "${workshop.description}"
+Mission: "${workshop.mission?.name} - ${workshop.mission?.goal}"
+Persona: "${workshop.persona?.name} - ${workshop.persona?.description}"
+Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
+` : '';
+  
+  const prompt = `You are an AI assistant helping with a design thinking workshop.${workshopContext}
+
+The participants have created an idea with these elements:
   - ${selectedCards}
   
   The idea title is: "${idea.title}"
@@ -312,7 +323,7 @@ export const generateStoryboard = async (idea: Idea): Promise<string[]> => {
   
   Please create a coherent 8-step storyboard that outlines the user journey for this idea. Each step should be a concise single sentence describing what happens at that point in the user experience.
   
-  The storyboard should follow a logical flow:
+  The storyboard should follow this logical flow (but do NOT include these numbers in your response):
   1. Introduction to the user/context
   2. Initial interaction with the product/service
   3. How the sensor/detection works (if applicable)
@@ -321,6 +332,11 @@ export const generateStoryboard = async (idea: Idea): Promise<string[]> => {
   6. How the service component works (if applicable)
   7. Resolution or outcome
   8. Benefits realized by the user
+  
+  Make sure the storyboard aligns with:
+  - The workshop mission and goals
+  - The persona's needs and characteristics
+  - The specific scenario context
   
   Adapt this flow based on the actual components selected for the idea. Focus on creating a coherent narrative using the available components.
   
@@ -354,7 +370,7 @@ export const generateStoryboard = async (idea: Idea): Promise<string[]> => {
     const steps = data.response
       .split('\n')
       .filter(line => line.trim() !== '')
-      .map(line => line.replace(/^\d+\.\s*/, '').trim()) // Remove any numbering
+      .map(line => line.trim().replace(/^\d+\.\s*/, '')) // Remove any numbering
       .slice(0, 8); // Ensure we only have 8 steps
     
     // If we got fewer than 8 steps, add generic placeholders
