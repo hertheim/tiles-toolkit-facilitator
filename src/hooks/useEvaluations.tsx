@@ -31,20 +31,25 @@ export function useEvaluations() {
   };
 
   const updateCriteriaResponses = (ideaId: string, responses: EvaluationCriteria[]) => {
-    saveEvaluation({
+    const evaluation: Evaluation = {
       id: crypto.randomUUID(),
       ideaId,
       criteria: responses,
       createdAt: new Date(),
       updatedAt: new Date()
-    });
+    };
+    saveEvaluation(evaluation);
   };
 
   const updateSelectedCriteria = (ideaId: string, criteriaIds: string[]) => {
-    setSelectedCriteria(prev => ({
-      ...prev,
-      [ideaId]: criteriaIds
-    }));
+    setSelectedCriteria(prev => {
+      const newState = {
+        ...prev,
+        [ideaId]: criteriaIds
+      };
+      // Force a re-render by creating a new object
+      return { ...newState };
+    });
   };
 
   return {
