@@ -167,18 +167,4 @@ export interface StepData {
   id: string;
   position: number;
   content: string;
-}
-
-export interface EvaluationCriteria {
-  id: string;
-  name: string;
-  response: string;
-}
-
-export interface Evaluation {
-  id: string;
-  ideaId: string;
-  criteria: EvaluationCriteria[];
-  createdAt: Date;
-  updatedAt: Date;
 } 
