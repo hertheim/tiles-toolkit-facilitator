@@ -13,6 +13,7 @@ import { Evaluation } from '@/components/workshop/evaluation';
 import { ElevatorPitch } from '@/components/workshop/elevator-pitch';
 import { WorkshopPhase, Idea, CardType } from '@/types';
 import { toast } from 'sonner';
+import NextLink from 'next/link';
 
 // A component to display the workshop context (mission, persona, scenario)
 const WorkshopContext = ({ workshop }: { workshop: ReturnType<typeof useWorkshop>['currentWorkshop'] }) => {
@@ -275,9 +276,14 @@ export default function WorkshopPage() {
       <div className="mb-8 space-y-4">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">{currentWorkshop.name}</h1>
-          <Button variant="outline" onClick={() => router.push('/')}>
-            Back to Workshops
-          </Button>
+          <div className="flex space-x-2">
+            <NextLink href={`/workshop/${currentWorkshop.id}/summary`} passHref>
+              <Button variant="outline">View Summary</Button>
+            </NextLink>
+            <Button variant="outline" onClick={() => router.push('/')}>
+              Back to frontpage
+            </Button>
+          </div>
         </div>
         <WorkshopContext workshop={currentWorkshop} />
       </div>

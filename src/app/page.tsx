@@ -13,13 +13,14 @@ import { missionCards } from '@/data/missions';
 import { scenarioCards } from '@/data/scenarios';
 import { format } from 'date-fns';
 import { Lightbulb, MessageSquare, PenTool, LineChart } from 'lucide-react';
+import NextLink from 'next/link';
 
 export default function Home() {
   const { workshops, createWorkshop, deleteWorkshop, setCurrentWorkshop } = useWorkshop();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newWorkshop, setNewWorkshop] = useState({
     name: '',
-    date: format(new Date(), 'yyyy-MM-dd'),
+    date: format(new Date(), 'dd-MM-yyyy'),
     facilitatorName: '',
     description: '',
     missionId: '',
@@ -54,7 +55,7 @@ export default function Home() {
     setIsDialogOpen(false);
     setNewWorkshop({
       name: '',
-      date: format(new Date(), 'yyyy-MM-dd'),
+      date: format(new Date(), 'dd-MM-yyyy'),
       facilitatorName: '',
       description: '',
       missionId: '',
@@ -266,6 +267,9 @@ export default function Home() {
                       <Button variant="outline" onClick={() => deleteWorkshop(workshop.id)}>
                         Delete
                       </Button>
+                      <NextLink href={`/workshop/${workshop.id}/summary`}>
+                        <Button variant="outline">View Summary</Button>
+                      </NextLink>
                       <Button onClick={() => handleStartWorkshop(workshop)}>
                         Start
                       </Button>
@@ -370,11 +374,11 @@ export default function Home() {
                     <li className="flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                       Drag-and-drop reordering
-          </li>
+                    </li>
                     <li className="flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                       Customize step descriptions
-          </li>
+                    </li>
                   </ul>
                 </CardContent>
               </Card>
