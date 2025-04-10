@@ -5,22 +5,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useWorkshop } from '@/lib/workshop-context';
 import { useEvaluations } from '@/hooks/useEvaluations';
-import { Idea } from '@/types';
-
-// Mock AI API for generating elevator pitch
-const mockGenerateElevatorPitch = async (idea: Idea) => {
-  await new Promise(resolve => setTimeout(resolve, 1200));
-  const thingName = idea.cardCombination.thing?.name || 'solution';
-  const sensorName = idea.cardCombination.sensor?.name || 'sensor';
-  const title = idea.title || 'Our product';
-  return `${title} is a ${thingName}-based solution that uses ${sensorName} technology to address user needs efficiently and effectively. It provides a seamless experience while solving a critical problem in a novel way.`;
-};
+import { Loader2 } from 'lucide-react';
+import { generateElevatorPitch } from '@/lib/ollama-service';
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export function ElevatorPitch() {
-  const { currentIdea, updateIdea } = useWorkshop();
-  const { selectedCriteria } = useEvaluations();
+  const { currentIdea, updateIdea, currentWorkshop } = useWorkshop();
+  const { selectedCriteria, evaluations } = useEvaluations();
   const [elevatorPitch, setElevatorPitch] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
 
   // Update elevator pitch when current idea changes
   useEffect(() => {
@@ -47,14 +42,28 @@ export function ElevatorPitch() {
     );
   }
 
-  const generateElevatorPitch = async () => {
+  // Get storyboard steps from the currentIdea if available
+  const storyboardSteps = currentIdea.storyboard?.steps || [];
+  
+  // Get evaluation criteria responses from the evaluations
+  const currentEvaluation = evaluations.find(e => e.ideaId === currentIdea.id);
+  const criteriaResponses = currentEvaluation?.criteria || [];
+
+  const handleGenerateElevatorPitch = async () => {
+    setIsRegenerateDialogOpen(false);
     setIsGenerating(true);
     try {
-      const pitch = await mockGenerateElevatorPitch(currentIdea);
+      const pitch = await generateElevatorPitch(
+        currentIdea, 
+        currentWorkshop, 
+        storyboardSteps,
+        criteriaResponses
+      );
       setElevatorPitch(pitch);
       updateIdea(currentIdea.id, { elevatorPitch: pitch });
     } catch (error) {
       console.error('Failed to generate elevator pitch:', error);
+      toast.error('Failed to generate elevator pitch. Please ensure Ollama is running and the mistral:instruct model is installed.');
     } finally {
       setIsGenerating(false);
     }
@@ -80,11 +89,18 @@ export function ElevatorPitch() {
           
           {!elevatorPitch ? (
             <Button
-              onClick={generateElevatorPitch}
+              onClick={handleGenerateElevatorPitch}
               disabled={isGenerating}
               className="w-full"
             >
-              {isGenerating ? 'Generating...' : 'Generate AI Elevator Pitch'}
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating comprehensive pitch...
+                </>
+              ) : (
+                'Generate AI Elevator Pitch'
+              )}
             </Button>
           ) : (
             <div className="space-y-4">
@@ -92,18 +108,53 @@ export function ElevatorPitch() {
                 value={elevatorPitch}
                 onChange={(e) => handleElevatorPitchChange(e.target.value)}
                 placeholder="Enter your elevator pitch..."
-                rows={6}
+                rows={10}
+                className="min-h-[200px]"
               />
               
               <div className="flex justify-between">
-                <Button variant="outline" onClick={generateElevatorPitch}>
-                  Regenerate
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsRegenerateDialogOpen(true)}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Regenerating...
+                    </>
+                  ) : (
+                    'Regenerate'
+                  )}
                 </Button>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
+      {/* Regenerate Confirmation Dialog */}
+      <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Regenerate Elevator Pitch</DialogTitle>
+            <DialogDescription>
+              This will overwrite your current elevator pitch. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setIsRegenerateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleGenerateElevatorPitch}
+              disabled={isGenerating}
+            >
+              {isGenerating ? 'Generating...' : 'Yes, Regenerate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

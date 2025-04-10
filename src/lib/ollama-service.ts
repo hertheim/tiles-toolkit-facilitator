@@ -383,4 +383,93 @@ The participants have created an idea with these elements:
     console.error('Error calling Ollama API:', error);
     throw new Error('Failed to generate storyboard. Please ensure Ollama is running and the mistral:instruct model is installed.');
   }
+};
+
+/**
+ * Generate an elevator pitch using Ollama with the mistral:instruct model
+ */
+export const generateElevatorPitch = async (
+  idea: Idea, 
+  workshop: Workshop | null | undefined,
+  storyboardSteps: any[],
+  evaluationCriteria: any[]
+): Promise<string> => {
+  const selectedCards = getSelectedCardsList(idea);
+  
+  // Add workshop context if available
+  const workshopContext = workshop ? `
+Workshop Name: ${workshop.name},
+Workshop Description: ${workshop.description},
+Mission: ${workshop.mission?.name} - ${workshop.mission?.goal},
+Persona: ${workshop.persona?.name} - ${workshop.persona?.description},
+Scenario: ${workshop.scenario?.name} - ${workshop.scenario?.description},
+` : '';
+
+  // Format storyboard steps if available
+  const storyboardNarrative = storyboardSteps.length > 0 
+    ? `\nStoryboard steps:\n${storyboardSteps.map((step, index) => 
+        `${index + 1}. ${step.description}`).join('\n')}`
+    : '';
+
+  // Format evaluation criteria if available
+  const criteriaResponses = evaluationCriteria.length > 0
+    ? `\nEvaluation criteria responses:\n${evaluationCriteria
+        .filter(c => c.response.trim() !== '')
+        .map(c => `- ${c.criteriaCard.name}: ${c.response}`).join('\n')}`
+    : '';
+  
+  const prompt = `You are an AI assistant helping with a design thinking workshop.${workshopContext}
+
+The participants have created an idea with these elements:
+- ${selectedCards}
+
+The idea title is: "${idea.title}"
+Description: "${idea.description}"
+${idea.refinements && idea.refinements.length > 0 ? `Refinements: ${idea.refinements.join(', ')}` : ''}${storyboardNarrative}${criteriaResponses}
+
+Based on all the information above, create a compelling elevator pitch for this idea. The elevator pitch should:
+
+1. Clearly articulate the idea in a concise, compelling way
+2. Capture the essence of what the idea solves and why it matters
+3. Reference the specific cards, workshop context, and any available storyboard or evaluation insights
+4. Be structured in 3-5 short paragraphs with clear value proposition
+5. Be approximately 150-200 words in length
+6. Use professional but engaging language
+
+The pitch should read as a polished, cohesive summary that could be presented to stakeholders or potential investors in about 30-60 seconds.`;
+  
+  try {
+    const response = await fetch(OLLAMA_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        prompt: prompt,
+        stream: false,
+        options: {
+          temperature: 0.7,
+          top_p: 0.9,
+        }
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json() as OllamaError;
+      throw new Error(`Ollama API error: ${errorData.error || response.statusText}`);
+    }
+    
+    const data = await response.json() as OllamaResponse;
+    return data.response;
+  } catch (error) {
+    console.error('Error generating elevator pitch:', error);
+    
+    // Fallback elevator pitch if AI fails
+    return `${idea.title} is an innovative solution designed to address the needs of ${workshop?.persona?.name || 'users'} in ${workshop?.scenario?.name || 'various'} scenarios.
+
+By leveraging ${idea.cardCombination.thing?.name || 'technological'} components with ${idea.cardCombination.sensor?.name || 'sensing'} capabilities, our solution offers a unique approach to ${workshop?.mission?.goal || 'solving problems'}.
+
+This solution provides significant benefits through intuitive interactions and meaningful feedback, ultimately delivering tangible value to users and stakeholders alike.`;
+  }
 }; 
