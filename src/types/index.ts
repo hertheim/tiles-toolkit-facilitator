@@ -8,12 +8,17 @@ import { FeedbackCard } from "@/data/feedback";
 import { ActionCard } from "@/data/actions";
 import { ServiceCard } from "@/data/services";
 
+export interface CustomCardFields {
+  customName?: string;
+  customDescription?: string;
+}
+
 export type CardType = 
-  | ThingCard 
-  | SensorCard 
-  | ActionCard 
-  | FeedbackCard 
-  | ServiceCard;
+  | (ThingCard & CustomCardFields)
+  | (SensorCard & CustomCardFields)
+  | (ActionCard & CustomCardFields) 
+  | (FeedbackCard & CustomCardFields)
+  | (ServiceCard & CustomCardFields);
 
 export interface Workshop {
   id: string;
@@ -112,7 +117,8 @@ export type WorkshopPhase =
   | 'ideation'   // Phase 1: Idea Generation & Overview
   | 'refinement' // Phase 2: Idea Refinement & Reflection
   | 'storyboard' // Phase 3: Storyboard Development
-  | 'evaluation'; // Phase 4: Criteria-based Evaluation & Elevator Pitch 
+  | 'evaluation' // Phase 4: Evaluation & Criteria
+  | 'elevator';  // Phase 5: Elevator Pitch
 
 export interface ThingCardRef {
   id: string;
@@ -167,18 +173,4 @@ export interface StepData {
   id: string;
   position: number;
   content: string;
-}
-
-export interface EvaluationCriteria {
-  id: string;
-  name: string;
-  response: string;
-}
-
-export interface Evaluation {
-  id: string;
-  ideaId: string;
-  criteria: EvaluationCriteria[];
-  createdAt: Date;
-  updatedAt: Date;
 } 

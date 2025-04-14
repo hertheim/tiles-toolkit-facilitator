@@ -157,6 +157,6 @@ export const personaCards: PersonaCard[] = [
     id: "p9",
     type: "Persona",
     name: "Custom Persona",
-    description: "Sketch or describe your new user group or persona here."
+    description: "Click to add your own custom persona and provide a description."
   }
 ]; 

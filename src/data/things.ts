@@ -57,127 +57,127 @@ export const thingCards: ThingCard[] = [
   {
     id: "t9",
     type: "Thing",
-    name: "Custom Thing",
-    description: "Sketch or describe your new object here."
-  },
-  {
-    id: "t10",
-    type: "Thing",
     name: "Jewelry",
     description: "A piece of jewelry, for example a ring, an armlet or a necklace."
   },
   {
-    id: "t11",
+    id: "t10",
     type: "Thing",
     name: "Plant",
     description: "A household plant, flower or its planter."
   },
   {
-    id: "t12",
+    id: "t11",
     type: "Thing",
     name: "Sport Equipment",
     description: "A football, a tennis racket or another piece of sporting equipment."
   },
   {
-    id: "t13",
+    id: "t12",
     type: "Thing",
     name: "Umbrella",
     description: "An umbrella or part of it."
   },
   {
-    id: "t14",
+    id: "t13",
     type: "Thing",
     name: "Coffee Cup",
     description: "A cup or mug for coffee or tea."
   },
   {
-    id: "t15",
+    id: "t14",
     type: "Thing",
     name: "Furniture",
     description: "A piece of furniture in the home, for example a chair, a table or a sofa."
   },
   {
-    id: "t16",
+    id: "t15",
     type: "Thing",
     name: "Piggy Bank",
     description: "A piggy bank or similar objects that are used to save money."
   },
   {
-    id: "t17",
+    id: "t16",
     type: "Thing",
     name: "Headgear",
     description: "A piece of headgear, for example a cap, a beanie or a helmet."
   },
   {
-    id: "t18",
+    id: "t17",
     type: "Thing",
     name: "Shoe",
     description: "Shoes or some part of a shoe, for example the shoelaces or the sole."
   },
   {
-    id: "t19",
+    id: "t18",
     type: "Thing",
     name: "Public Transport",
     description: "A bus, train or tram part of public transport, including parts such as doors, seats, or the bus stop."
   },
   {
-    id: "t20",
+    id: "t19",
     type: "Thing",
     name: "Street",
     description: "A street that is either used by cars or as a sidewalk by people."
   },
   {
-    id: "t21",
+    id: "t20",
     type: "Thing",
     name: "Building",
     description: "A building found in urban or rural areas, for example an office, gym, store, school or restaurant."
   },
   {
-    id: "t22",
+    id: "t21",
     type: "Thing",
     name: "Wheelchair",
     description: "A wheelchair to be used by people with limited mobility."
   },
   {
-    id: "t23",
+    id: "t22",
     type: "Thing",
     name: "Public Bin",
     description: "A public bin for waste or recycling."
   },
   {
-    id: "t24",
+    id: "t23",
     type: "Thing",
     name: "Bench",
     description: "A public bench."
   },
   {
-    id: "t25",
+    id: "t24",
     type: "Thing",
     name: "Street Light",
     description: "A public illumination lamp found in streets or other urban areas."
   },
   {
-    id: "t26",
+    id: "t25",
     type: "Thing",
     name: "Shower",
     description: "A shower, a sink or a bathtub."
   },
   {
-    id: "t27",
+    id: "t26",
     type: "Thing",
     name: "Medication",
     description: "An object related to personal medication, for example a pill bottle, medicine cabinet, etc."
   },
   {
-    id: "t28",
+    id: "t27",
     type: "Thing",
     name: "Boat",
     description: "A sailboat, motorboat or other forms of transportation over water."
   },
   {
-    id: "t29",
+    id: "t28",
     type: "Thing",
     name: "Car",
     description: "A vehicle that is privately owned."
+  },
+  {
+    id: "t29",
+    type: "Thing",
+    name: "Custom Thing",
+    description: "Click to add your own custom thing and provide a description."
   }
 ]; 

@@ -5,12 +5,15 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkshop } from '@/lib/workshop-context';
+import { useEvaluations } from '@/hooks/useEvaluations';
 import { CardSelection } from '@/components/workshop/card-selection';
 import { IdeaRefinement } from '@/components/workshop/idea-refinement';
 import { Storyboard } from '@/components/workshop/storyboard';
 import { Evaluation } from '@/components/workshop/evaluation';
+import { ElevatorPitch } from '@/components/workshop/elevator-pitch';
 import { WorkshopPhase, Idea, CardType } from '@/types';
 import { toast } from 'sonner';
+import NextLink from 'next/link';
 
 // A component to display the workshop context (mission, persona, scenario)
 const WorkshopContext = ({ workshop }: { workshop: ReturnType<typeof useWorkshop>['currentWorkshop'] }) => {
@@ -97,6 +100,7 @@ const IdeasList = ({
 
 export default function WorkshopPage() {
   const workshop = useWorkshop();
+  const { selectedCriteria } = useEvaluations();
   const { 
     currentWorkshop, 
     setCurrentWorkshop, 
@@ -114,7 +118,7 @@ export default function WorkshopPage() {
   
   // Add isEditingIdea state to track when we're editing vs creating
   const [isEditingIdea, setIsEditingIdea] = useState(false);
-  
+
   // Load the workshop
   useEffect(() => {
     // Extract the workshop ID from the URL
@@ -266,15 +270,20 @@ export default function WorkshopPage() {
   const handlePhaseChange = (phase: string) => {
     setCurrentPhase(phase as WorkshopPhase);
   };
-  
+
   return (
     <div className="container mx-auto py-8 px-4 max-w-7xl">
       <div className="mb-8 space-y-4">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">{currentWorkshop.name}</h1>
-          <Button variant="outline" onClick={() => router.push('/')}>
-            Back to Workshops
-          </Button>
+          <div className="flex space-x-2">
+            <NextLink href={`/workshop/${currentWorkshop.id}/summary`} passHref>
+              <Button variant="outline">View Summary</Button>
+            </NextLink>
+            <Button variant="outline" onClick={() => router.push('/')}>
+              Back to frontpage
+            </Button>
+          </div>
         </div>
         <WorkshopContext workshop={currentWorkshop} />
       </div>
@@ -300,7 +309,7 @@ export default function WorkshopPage() {
         {/* Main content area */}
         <div className="lg:col-span-3">
           <Tabs value={currentPhase} onValueChange={handlePhaseChange}>
-            <TabsList className="grid grid-cols-4 w-full mb-8">
+            <TabsList className="grid grid-cols-5 w-full mb-8">
               <TabsTrigger value="ideation">
                 <div className="flex items-center gap-2">
                   <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
@@ -325,6 +334,12 @@ export default function WorkshopPage() {
                   Evaluation
                 </div>
               </TabsTrigger>
+              <TabsTrigger value="elevator" disabled={!currentIdea}>
+                <div className="flex items-center gap-2">
+                  <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">5</span>
+                  Elevator Pitch
+                </div>
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="ideation">
@@ -345,6 +360,10 @@ export default function WorkshopPage() {
             
             <TabsContent value="evaluation">
               <Evaluation />
+            </TabsContent>
+
+            <TabsContent value="elevator">
+              <ElevatorPitch />
             </TabsContent>
           </Tabs>
         </div>

@@ -89,5 +89,11 @@ export const serviceCards: ServiceCard[] = [
     type: "Services",
     name: "News and Sports",
     description: "Data from news providers or sport results."
+  },
+  {
+    id: "sv15",
+    type: "Service",
+    name: "Custom Service",
+    description: "Click to add your own custom service and provide a description."
   }
 ]; 

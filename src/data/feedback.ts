@@ -57,7 +57,7 @@ export const feedbackCards: FeedbackCard[] = [
   {
     id: "f9",
     type: "Feedback",
-    name: "Sound",
-    description: "The object emits a sound."
+    name: "Custom Feedback",
+    description: "Click to add your own custom feedback and provide a description."
   }
 ]; 

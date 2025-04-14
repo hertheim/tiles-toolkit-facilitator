@@ -112,6 +112,6 @@ export const scenarioCards: ScenarioCard[] = [
     id: "sc18",
     type: "Scenario",
     name: "Custom Scenario",
-    description: "Sketch or describe your new scenario here."
+    description: "Click to add your own custom scenario and provide a description."
   }
 ]; 
