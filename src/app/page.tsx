@@ -8,12 +8,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkshop } from '@/lib/workshop-context';
-import { personaCards } from '@/data/personas';
-import { missionCards } from '@/data/missions';
-import { scenarioCards } from '@/data/scenarios';
+import { personaCards, PersonaCard } from '@/data/personas';
+import { missionCards, MissionCard } from '@/data/missions';
+import { scenarioCards, ScenarioCard } from '@/data/scenarios';
 import { format } from 'date-fns';
 import { Lightbulb, MessageSquare, PenTool, LineChart } from 'lucide-react';
 import NextLink from 'next/link';
+import { Label } from '@/components/ui/label';
 
 export default function Home() {
   const { workshops, createWorkshop, deleteWorkshop, setCurrentWorkshop } = useWorkshop();
@@ -27,20 +28,138 @@ export default function Home() {
     personaId: '',
     scenarioId: '',
   });
+  
+  // State for custom cards
+  const [customMissionDialogOpen, setCustomMissionDialogOpen] = useState(false);
+  const [customMissionName, setCustomMissionName] = useState('');
+  const [customMissionGoal, setCustomMissionGoal] = useState('');
+  const [customMissionExample, setCustomMissionExample] = useState('');
+  
+  const [customPersonaDialogOpen, setCustomPersonaDialogOpen] = useState(false);
+  const [customPersonaName, setCustomPersonaName] = useState('');
+  const [customPersonaDescription, setCustomPersonaDescription] = useState('');
+  
+  const [customScenarioDialogOpen, setCustomScenarioDialogOpen] = useState(false);
+  const [customScenarioName, setCustomScenarioName] = useState('');
+  const [customScenarioDescription, setCustomScenarioDescription] = useState('');
+  
+  // Custom card data
+  const [customMission, setCustomMission] = useState<MissionCard | null>(null);
+  const [customPersona, setCustomPersona] = useState<PersonaCard | null>(null);
+  const [customScenario, setCustomScenario] = useState<ScenarioCard | null>(null);
+  
   const router = useRouter();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    
+    // Check if this is a custom card selection
+    if (name === 'missionId' && value === 'm14') { // Custom Mission
+      // Reset previous custom mission data
+      setCustomMissionName('');
+      setCustomMissionGoal('');
+      setCustomMissionExample('');
+      setCustomMissionDialogOpen(true);
+      return;
+    } else if (name === 'personaId' && value === 'p9') { // Custom Persona
+      // Reset previous custom persona data
+      setCustomPersonaName('');
+      setCustomPersonaDescription('');
+      setCustomPersonaDialogOpen(true);
+      return;
+    } else if (name === 'scenarioId' && value === 'sc18') { // Custom Scenario
+      // Reset previous custom scenario data
+      setCustomScenarioName('');
+      setCustomScenarioDescription('');
+      setCustomScenarioDialogOpen(true);
+      return;
+    }
+    
     setNewWorkshop({
       ...newWorkshop,
       [name]: value,
     });
   };
+  
+  const handleCustomMissionConfirm = () => {
+    if (!customMissionName.trim()) return;
+    
+    const newCustomMission: MissionCard = {
+      id: `custom-mission-${Date.now()}`,
+      type: "Mission",
+      name: customMissionName,
+      goal: customMissionGoal || "Custom mission goal",
+      example: customMissionExample || "Custom mission example"
+    };
+    
+    setCustomMission(newCustomMission);
+    setNewWorkshop({
+      ...newWorkshop,
+      missionId: newCustomMission.id
+    });
+    setCustomMissionDialogOpen(false);
+  };
+  
+  const handleCustomPersonaConfirm = () => {
+    if (!customPersonaName.trim()) return;
+    
+    const newCustomPersona: PersonaCard = {
+      id: `custom-persona-${Date.now()}`,
+      type: "Persona",
+      name: customPersonaName,
+      description: customPersonaDescription || "Custom persona description"
+    };
+    
+    setCustomPersona(newCustomPersona);
+    setNewWorkshop({
+      ...newWorkshop,
+      personaId: newCustomPersona.id
+    });
+    setCustomPersonaDialogOpen(false);
+  };
+  
+  const handleCustomScenarioConfirm = () => {
+    if (!customScenarioName.trim()) return;
+    
+    const newCustomScenario: ScenarioCard = {
+      id: `custom-scenario-${Date.now()}`,
+      type: "Scenario",
+      name: customScenarioName,
+      description: customScenarioDescription || "Custom scenario description"
+    };
+    
+    setCustomScenario(newCustomScenario);
+    setNewWorkshop({
+      ...newWorkshop,
+      scenarioId: newCustomScenario.id
+    });
+    setCustomScenarioDialogOpen(false);
+  };
 
   const handleCreateWorkshop = () => {
-    const mission = missionCards.find(m => m.id === newWorkshop.missionId);
-    const persona = personaCards.find(p => p.id === newWorkshop.personaId);
-    const scenario = scenarioCards.find(s => s.id === newWorkshop.scenarioId);
+    // Determine which mission to use (standard or custom)
+    let mission: MissionCard | undefined;
+    if (customMission && newWorkshop.missionId === customMission.id) {
+      mission = customMission;
+    } else {
+      mission = missionCards.find(m => m.id === newWorkshop.missionId);
+    }
+    
+    // Determine which persona to use (standard or custom)
+    let persona: PersonaCard | undefined;
+    if (customPersona && newWorkshop.personaId === customPersona.id) {
+      persona = customPersona;
+    } else {
+      persona = personaCards.find(p => p.id === newWorkshop.personaId);
+    }
+    
+    // Determine which scenario to use (standard or custom)
+    let scenario: ScenarioCard | undefined;
+    if (customScenario && newWorkshop.scenarioId === customScenario.id) {
+      scenario = customScenario;
+    } else {
+      scenario = scenarioCards.find(s => s.id === newWorkshop.scenarioId);
+    }
     
     const workshop = createWorkshop({
       name: newWorkshop.name,
@@ -52,6 +171,7 @@ export default function Home() {
       scenario,
     });
     
+    // Reset all form data including custom cards
     setIsDialogOpen(false);
     setNewWorkshop({
       name: '',
@@ -63,9 +183,51 @@ export default function Home() {
       scenarioId: '',
     });
     
+    // Reset custom card data
+    setCustomMission(null);
+    setCustomPersona(null);
+    setCustomScenario(null);
+    setCustomMissionName('');
+    setCustomMissionGoal('');
+    setCustomMissionExample('');
+    setCustomPersonaName('');
+    setCustomPersonaDescription('');
+    setCustomScenarioName('');
+    setCustomScenarioDescription('');
+    
     // Navigate to the workshop session
     setCurrentWorkshop(workshop);
     router.push(`/workshop/${workshop.id}`);
+  };
+
+  // When the create workshop dialog is closed, reset all custom card data
+  const handleDialogOpenChange = (isOpen: boolean) => {
+    setIsDialogOpen(isOpen);
+    
+    if (!isOpen) {
+      // Reset all custom card data when dialog is closed
+      setCustomMission(null);
+      setCustomPersona(null);
+      setCustomScenario(null);
+      setCustomMissionName('');
+      setCustomMissionGoal('');
+      setCustomMissionExample('');
+      setCustomPersonaName('');
+      setCustomPersonaDescription('');
+      setCustomScenarioName('');
+      setCustomScenarioDescription('');
+      
+      // Also reset form data
+      setNewWorkshop({
+        name: '',
+        date: format(new Date(), 'dd-MM-yyyy'),
+        facilitatorName: '',
+        description: '',
+        missionId: '',
+        personaId: '',
+        scenarioId: '',
+      });
+    }
   };
 
   const handleStartWorkshop = (workshop: typeof workshops[0]) => {
@@ -87,7 +249,7 @@ export default function Home() {
                 AI-facilitated ideation toolkit for creativity, idea refinement, and structured evaluation in collaborative workshops.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
                   <DialogTrigger asChild>
                     <Button size="lg" className="shadow-lg">Create New Workshop</Button>
                   </DialogTrigger>
@@ -155,7 +317,22 @@ export default function Home() {
                               {mission.name}
                             </option>
                           ))}
+                          {customMission && (
+                            <option value={customMission.id}>
+                              {customMission.name} (Custom)
+                            </option>
+                          )}
                         </select>
+                        {newWorkshop.missionId && !customMission?.id?.includes('custom-mission') && newWorkshop.missionId !== 'm14' && (
+                          <div className="p-2 bg-muted rounded-md text-xs mt-1">
+                            <p><strong>Goal:</strong> {missionCards.find(m => m.id === newWorkshop.missionId)?.goal}</p>
+                          </div>
+                        )}
+                        {customMission && newWorkshop.missionId === customMission.id && (
+                          <div className="p-2 bg-muted rounded-md text-xs mt-1">
+                            <p><strong>Goal:</strong> {customMission.goal}</p>
+                          </div>
+                        )}
                       </div>
                       <div className="grid gap-2">
                         <label htmlFor="personaId" className="text-sm font-medium">Persona</label>
@@ -172,7 +349,22 @@ export default function Home() {
                               {persona.name}
                             </option>
                           ))}
+                          {customPersona && (
+                            <option value={customPersona.id}>
+                              {customPersona.name} (Custom)
+                            </option>
+                          )}
                         </select>
+                        {newWorkshop.personaId && !customPersona?.id?.includes('custom-persona') && newWorkshop.personaId !== 'p9' && (
+                          <div className="p-2 bg-muted rounded-md text-xs mt-1">
+                            <p><strong>Description:</strong> {personaCards.find(p => p.id === newWorkshop.personaId)?.description}</p>
+                          </div>
+                        )}
+                        {customPersona && newWorkshop.personaId === customPersona.id && (
+                          <div className="p-2 bg-muted rounded-md text-xs mt-1">
+                            <p><strong>Description:</strong> {customPersona.description}</p>
+                          </div>
+                        )}
                       </div>
                       <div className="grid gap-2">
                         <label htmlFor="scenarioId" className="text-sm font-medium">Scenario</label>
@@ -189,7 +381,22 @@ export default function Home() {
                               {scenario.name}
                             </option>
                           ))}
+                          {customScenario && (
+                            <option value={customScenario.id}>
+                              {customScenario.name} (Custom)
+                            </option>
+                          )}
                         </select>
+                        {newWorkshop.scenarioId && !customScenario?.id?.includes('custom-scenario') && newWorkshop.scenarioId !== 'sc18' && (
+                          <div className="p-2 bg-muted rounded-md text-xs mt-1">
+                            <p><strong>Description:</strong> {scenarioCards.find(s => s.id === newWorkshop.scenarioId)?.description}</p>
+                          </div>
+                        )}
+                        {customScenario && newWorkshop.scenarioId === customScenario.id && (
+                          <div className="p-2 bg-muted rounded-md text-xs mt-1">
+                            <p><strong>Description:</strong> {customScenario.description}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <DialogFooter>
@@ -199,12 +406,176 @@ export default function Home() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                
+                {/* Custom Mission Dialog */}
+                <Dialog open={customMissionDialogOpen} onOpenChange={setCustomMissionDialogOpen}>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Create Custom Mission</DialogTitle>
+                      <DialogDescription>
+                        Define your own mission for the workshop.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="mission-name" className="text-right">
+                          Name
+                        </Label>
+                        <Input
+                          id="mission-name"
+                          value={customMissionName}
+                          onChange={(e) => setCustomMissionName(e.target.value)}
+                          className="col-span-3"
+                          placeholder="e.g., Sustainable Innovation"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="mission-goal" className="text-right">
+                          Goal
+                        </Label>
+                        <Textarea
+                          id="mission-goal"
+                          value={customMissionGoal}
+                          onChange={(e) => setCustomMissionGoal(e.target.value)}
+                          className="col-span-3"
+                          placeholder="Describe the goal of this mission"
+                          rows={3}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="mission-example" className="text-right">
+                          Example
+                        </Label>
+                        <Textarea
+                          id="mission-example"
+                          value={customMissionExample}
+                          onChange={(e) => setCustomMissionExample(e.target.value)}
+                          className="col-span-3"
+                          placeholder="Provide an example for this mission"
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                    
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setCustomMissionDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleCustomMissionConfirm} disabled={!customMissionName.trim()}>
+                        Save Mission
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                
+                {/* Custom Persona Dialog */}
+                <Dialog open={customPersonaDialogOpen} onOpenChange={setCustomPersonaDialogOpen}>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Create Custom Persona</DialogTitle>
+                      <DialogDescription>
+                        Define your own persona for the workshop.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="persona-name" className="text-right">
+                          Name
+                        </Label>
+                        <Input
+                          id="persona-name"
+                          value={customPersonaName}
+                          onChange={(e) => setCustomPersonaName(e.target.value)}
+                          className="col-span-3"
+                          placeholder="e.g., Remote Worker"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="persona-description" className="text-right">
+                          Description
+                        </Label>
+                        <Textarea
+                          id="persona-description"
+                          value={customPersonaDescription}
+                          onChange={(e) => setCustomPersonaDescription(e.target.value)}
+                          className="col-span-3"
+                          placeholder="Describe this persona and their characteristics"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                    
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setCustomPersonaDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleCustomPersonaConfirm} disabled={!customPersonaName.trim()}>
+                        Save Persona
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                
+                {/* Custom Scenario Dialog */}
+                <Dialog open={customScenarioDialogOpen} onOpenChange={setCustomScenarioDialogOpen}>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Create Custom Scenario</DialogTitle>
+                      <DialogDescription>
+                        Define your own scenario for the workshop.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="scenario-name" className="text-right">
+                          Name
+                        </Label>
+                        <Input
+                          id="scenario-name"
+                          value={customScenarioName}
+                          onChange={(e) => setCustomScenarioName(e.target.value)}
+                          className="col-span-3"
+                          placeholder="e.g., Remote Collaboration"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="scenario-description" className="text-right">
+                          Description
+                        </Label>
+                        <Textarea
+                          id="scenario-description"
+                          value={customScenarioDescription}
+                          onChange={(e) => setCustomScenarioDescription(e.target.value)}
+                          className="col-span-3"
+                          placeholder="Describe this scenario and its challenges"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                    
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setCustomScenarioDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleCustomScenarioConfirm} disabled={!customScenarioName.trim()}>
+                        Save Scenario
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                
                 <a href="https://www.tilestoolkit.io/" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="lg">
                     Tiles homepage
                   </Button>
                 </a>
-
               </div>
             </div>
             <div className="relative h-[400px] flex items-center justify-center">

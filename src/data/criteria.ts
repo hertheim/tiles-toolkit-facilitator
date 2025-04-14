@@ -74,7 +74,7 @@ export const criteriaCards: CriteriaCard[] = [
     id: "c10",
     type: "Criteria",
     name: "Custom Criteria",
-    description: "Describe a criteria of your choice here.",
+    description: "Click to add your own custom criteria and provide a description.",
     question: ""
   }
 ]; 

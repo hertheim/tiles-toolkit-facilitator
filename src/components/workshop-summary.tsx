@@ -37,7 +37,7 @@ export function WorkshopSummary({ workshopId }: { workshopId: string }) {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Workshop Summary: {workshop.name}</h2>
         <div className="px-3 py-1 border rounded-md text-sm">
-          {format(new Date(workshop.date).toLocaleDateString(), 'dd-MM-yyyy')}
+          {format(new Date(workshop.date), 'dd-MM-yyyy')}
         </div>
       </div>
       

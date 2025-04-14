@@ -8,12 +8,17 @@ import { FeedbackCard } from "@/data/feedback";
 import { ActionCard } from "@/data/actions";
 import { ServiceCard } from "@/data/services";
 
+export interface CustomCardFields {
+  customName?: string;
+  customDescription?: string;
+}
+
 export type CardType = 
-  | ThingCard 
-  | SensorCard 
-  | ActionCard 
-  | FeedbackCard 
-  | ServiceCard;
+  | (ThingCard & CustomCardFields)
+  | (SensorCard & CustomCardFields)
+  | (ActionCard & CustomCardFields) 
+  | (FeedbackCard & CustomCardFields)
+  | (ServiceCard & CustomCardFields);
 
 export interface Workshop {
   id: string;
