@@ -111,6 +111,9 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
   const [customDescription, setCustomDescription] = useState('');
   const [customName, setCustomName] = useState('');
 
+  // Confirmation dialog for clear selection
+  const [clearConfirmDialogOpen, setClearConfirmDialogOpen] = useState(false);
+
   // Effect to initialize selected cards when initialCardCombination changes
   useEffect(() => {
     if (initialCardCombination) {
@@ -274,6 +277,7 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
       service: []
     });
     setActiveTab('things');
+    setClearConfirmDialogOpen(false);
   };
 
   const isValid = () => {
@@ -344,6 +348,32 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
           )}
         </div>
       </div>
+
+      <div className="flex justify-between">
+        <Button 
+          variant="outline" 
+          onClick={() => {
+            // Only show confirmation if there are cards selected
+            const hasSelectedCards = Object.values(selectedCards).some(
+              categoryCards => categoryCards.length > 0
+            );
+            
+            if (hasSelectedCards) {
+              setClearConfirmDialogOpen(true);
+            }
+          }}
+          disabled={Object.values(selectedCards).every(categoryCards => categoryCards.length === 0)}
+        >
+          Clear Selection
+        </Button>
+        
+        <Button 
+          onClick={() => onCombinationComplete(prepareCardCombination())}
+          disabled={!isValid()}
+        >
+          {isEditing ? 'Update Idea' : 'Save Combination'}
+        </Button>
+      </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-5 w-full">
@@ -395,6 +425,27 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
         </TabsContent>
       </Tabs>
       
+      {/* Clear Selection Confirmation Dialog */}
+      <Dialog open={clearConfirmDialogOpen} onOpenChange={setClearConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Clear Selection</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to clear all selected cards? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setClearConfirmDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleClearSelection}>
+              Clear All Cards
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Custom Card Dialog */}
       <Dialog open={customCardDialogOpen} onOpenChange={setCustomCardDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -443,19 +494,6 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handleClearSelection}>
-          Clear Selection
-        </Button>
-        
-        <Button 
-          onClick={() => onCombinationComplete(prepareCardCombination())}
-          disabled={!isValid()}
-        >
-          {isEditing ? 'Update Idea' : 'Save Combination'}
-        </Button>
-      </div>
     </div>
   );
 } 
