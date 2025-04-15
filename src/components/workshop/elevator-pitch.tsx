@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useWorkshop } from '@/lib/workshop-context';
 import { useEvaluations } from '@/hooks/useEvaluations';
-import { Loader2 } from 'lucide-react';
+import { Loader2, PencilLine } from 'lucide-react';
 import { generateElevatorPitch } from '@/lib/ollama-service';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,11 +16,15 @@ export function ElevatorPitch() {
   const [elevatorPitch, setElevatorPitch] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const [isEditorVisible, setIsEditorVisible] = useState(false);
 
   // Update elevator pitch when current idea changes
   useEffect(() => {
     if (currentIdea) {
       setElevatorPitch(currentIdea.elevatorPitch || '');
+      // Check if we've already started editing this idea
+      const hasEditingStarted = !!currentIdea.elevatorPitch || isEditorVisible;
+      setIsEditorVisible(hasEditingStarted);
     }
   }, [currentIdea]);
 
@@ -52,6 +56,8 @@ export function ElevatorPitch() {
   const handleGenerateElevatorPitch = async () => {
     setIsRegenerateDialogOpen(false);
     setIsGenerating(true);
+    setIsEditorVisible(true); // Ensure editor stays visible
+    
     try {
       const pitch = await generateElevatorPitch(
         currentIdea, 
@@ -69,9 +75,34 @@ export function ElevatorPitch() {
     }
   };
 
+  const handleCreateManually = () => {
+    setElevatorPitch(''); // Clear existing content
+    setIsEditorVisible(true); // Ensure editor stays visible
+    
+    // Save the empty state to ensure consistency
+    updateIdea(currentIdea.id, { elevatorPitch: '' });
+    
+    // Focus the textarea after it renders
+    setTimeout(() => {
+      const textarea = document.getElementById('elevator-pitch-textarea');
+      if (textarea) {
+        textarea.focus();
+      }
+    }, 0);
+  };
+
   const handleElevatorPitchChange = (value: string) => {
     setElevatorPitch(value);
     updateIdea(currentIdea.id, { elevatorPitch: value });
+  };
+
+  const handleBackToOptions = () => {
+    // Allow going back to the options screen if desired
+    setIsEditorVisible(false);
+    // Optionally clear the pitch if it's empty
+    if (!elevatorPitch.trim()) {
+      updateIdea(currentIdea.id, { elevatorPitch: '' });
+    }
   };
 
   return (
@@ -87,24 +118,31 @@ export function ElevatorPitch() {
             An elevator pitch clearly articulates your idea in a concise, compelling way. It should capture the essence of what your idea solves and why it matters.
           </p>
           
-          {!elevatorPitch ? (
-            <Button
-              onClick={handleGenerateElevatorPitch}
-              disabled={isGenerating}
-              className="w-full"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating comprehensive pitch...
-                </>
-              ) : (
-                'Generate AI Elevator Pitch'
-              )}
-            </Button>
+          {!isEditorVisible ? (
+            <div className="flex justify-center gap-4">
+              <Button
+                onClick={handleGenerateElevatorPitch}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Generate with AI</span>
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" onClick={handleCreateManually}>
+                Create from Scratch
+              </Button>
+            </div>
           ) : (
             <div className="space-y-4">
               <Textarea
+                id="elevator-pitch-textarea"
                 value={elevatorPitch}
                 onChange={(e) => handleElevatorPitchChange(e.target.value)}
                 placeholder="Enter your elevator pitch..."
@@ -124,7 +162,7 @@ export function ElevatorPitch() {
                       Regenerating...
                     </>
                   ) : (
-                    'Regenerate'
+                    'Regenerate with AI'
                   )}
                 </Button>
               </div>
