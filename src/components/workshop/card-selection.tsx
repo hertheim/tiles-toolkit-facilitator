@@ -203,6 +203,59 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
     }
   }, [initialCardCombination]);
 
+  // Function to check if the selected cards are different from the initial card combination
+  const hasCardCombinationChanged = () => {
+    if (!isEditing || !initialCardCombination) return true; // If not editing, changes aren't relevant
+    
+    const categories = ['thing', 'sensor', 'action', 'feedback', 'service'] as const;
+    
+    // Check if the number of cards in any category has changed
+    for (const category of categories) {
+      const initialCount = initialCardCombination[`${category}Cards`]?.length || 
+                          (initialCardCombination[category] ? 1 : 0);
+      const currentCount = selectedCards[category].length;
+      
+      if (initialCount !== currentCount) return true;
+    }
+    
+    // Check if the cards themselves have changed in any category
+    for (const category of categories) {
+      const currentCategoryCards = selectedCards[category];
+      
+      // Get initial cards, either as an array or as a single card
+      let initialCategoryCards: typeof thingCards[0][] = [];
+      
+      if (initialCardCombination[`${category}Cards`]?.length) {
+        initialCategoryCards = initialCardCombination[`${category}Cards`] as typeof thingCards[0][];
+      } else if (initialCardCombination[category]) {
+        initialCategoryCards = [initialCardCombination[category] as typeof thingCards[0]];
+      }
+      
+      // If the arrays have different lengths, they're different
+      if (initialCategoryCards.length !== currentCategoryCards.length) return true;
+      
+      // Compare each card by ID
+      for (const currentCard of currentCategoryCards) {
+        const matchingCard = initialCategoryCards.find(c => c.id === currentCard.id);
+        
+        // If this card doesn't exist in the initial set, or its custom data changed
+        if (!matchingCard) return true;
+        
+        // Check for custom card changes
+        if (CUSTOM_CARD_IDS.includes(currentCard.id)) {
+          if (
+            (currentCard as any).customName !== (matchingCard as any).customName ||
+            (currentCard as any).customDescription !== (matchingCard as any).customDescription
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+    
+    return false;
+  };
+
   const handleSelectCard = (category: string, card: CardType) => {
     // First check if this card is already selected
     const categoryArray = selectedCards[category as keyof typeof selectedCards];
@@ -369,7 +422,7 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
         
         <Button 
           onClick={() => onCombinationComplete(prepareCardCombination())}
-          disabled={!isValid()}
+          disabled={!isValid() || (isEditing && !hasCardCombinationChanged())}
         >
           {isEditing ? 'Update Idea' : 'Save Combination'}
         </Button>

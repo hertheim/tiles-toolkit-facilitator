@@ -107,12 +107,12 @@ The participants have created a new idea with the following components:
 Idea Title: "${idea.title}"
 Idea Description: "${idea.description}"
 
-Please generate a welcoming first message that:
+Please generate a short welcoming first message that:
 1. Acknowledges their idea and its components
 2. References the workshop context (mission, persona, scenario) 
-3. Briefly explains how you can help them refine this idea
-4. Mentions the available commands (/reflect, /creative, /provoke, /help)
-5. If they have only selected a few cards, encourage them to consider adding more cards as they refine the idea
+3. Briefly and concisely explains how you can help them refine this idea
+4. States the available commands (/reflect, /creative, /provoke, /help)
+5. If they have only selected a few cards, encourage them briefly to consider adding more cards as they refine the idea
 
 Keep your response conversational, encouraging, and under 200 words.`;
 
@@ -146,10 +146,10 @@ Keep your response conversational, encouraging, and under 200 words.`;
     return `Welcome to the Idea Refinement chat! I'll help you refine your idea "${idea.title}" through interactive feedback.
 
 Try these commands:
-- Type **/reflect** for reflective questions
-- Type **/creative** for alternative approaches
-- Type **/provoke** to challenge assumptions
-- Type **/help** for more information`;
+- Type "/reflect" for reflective questions
+- Type "/creative" for alternative approaches
+- Type "/provoke" to challenge assumptions
+- Type "/help" for more information`;
   }
 };
 
@@ -198,9 +198,9 @@ Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
     The idea title is: "${idea.title}"
     Description: "${idea.description}"
     
-    Please provide 5-6 reflective questions that will help them think more deeply about their idea. Focus on feasibility, user benefits, implementation challenges, and potential improvements. Make your questions specific to their idea components and relevant to the workshop context.
+    Please provide a short 2-3 reflective statements (not questions) that will help them think more deeply about their idea. Focus on feasibility, user benefits, implementation challenges, and potential improvements. Make your questions specific to their idea components and relevant to the workshop context.
     
-    If they have only selected a few cards (or none), also provide 1-2 questions encouraging them to consider adding additional components to their idea.`;
+    Only if the selected ideas are few. Place the title "Additional components to consider" and also provide 1-2 questions encouraging them to consider adding additional components to their idea.`; // if statements are not very good with the AI model, does them either way
   } 
   else if (lowerCommand.startsWith('/creative')) {
     prompt = `You are an AI assistant helping with a design thinking workshop. ${workshopContext}The participants have created an idea with these elements:
@@ -225,7 +225,7 @@ Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
     The idea title is: "${idea.title}"
     Description: "${idea.description}"
     
-    Please challenge their thinking by raising 5-6 provocative questions about:
+    Please challenge their thinking by stating 2-3 provocative statements about:
     - Potential privacy or ethical concerns
     - Technical limitations or failures
     - Unintended consequences
@@ -233,22 +233,22 @@ Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
     - Edge cases or accessibility issues
     - Alignment with the workshop mission and persona needs
     
-    Make your questions specific to their idea components and help them identify blind spots.
+    Make your statements specific to their idea components and help them identify blind spots.
     
-    If they are missing components in their idea, also include 1-2 provocative questions about why those components might be essential.`;
+    If they are missing components in their idea, also include 1-2 provocative statements about why those components might be essential.`; // if statements are not very good with the AI model, does them either way
   }
   else if (lowerCommand.startsWith('/help')) {
     // For help command, we don't need to call the API
-    return `**Available Commands:**
+    return `Available Commands:
 
-- **/reflect** - Get reflective questions to improve feasibility and value
-- **/creative** - Receive suggestions for alternative cards and approach variations
-- **/provoke** - Identify potential weaknesses and edge cases
-- **/help** - Display this help message
+- /reflect -- Get reflective questions to improve feasibility and value
+- /creative -- Receive suggestions for alternative cards and approach variations
+- /provoke -- Identify potential weaknesses and edge cases
+- /help -- Display this help message
 
 You can also just chat normally without using commands.
 
-**Card Selection Tips:**
+Card Selection Tips:
 - You can select any number of cards from each category
 - Ideas can be started with just a few cards and expanded later
 - Try different combinations to explore various possibilities`;

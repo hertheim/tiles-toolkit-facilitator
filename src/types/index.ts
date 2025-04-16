@@ -73,6 +73,7 @@ export interface Idea {
   storyboard?: Storyboard;
   evaluation?: Evaluation;
   elevatorPitch?: string;
+  cardsUpdated?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
