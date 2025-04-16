@@ -198,9 +198,7 @@ Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
     The idea title is: "${idea.title}"
     Description: "${idea.description}"
     
-    Please provide a short 2-3 reflective statements (not questions) that will help them think more deeply about their idea. Focus on feasibility, user benefits, implementation challenges, and potential improvements. Make your questions specific to their idea components and relevant to the workshop context.
-    
-    Only if the selected ideas are few. Place the title "Additional components to consider" and also provide 1-2 questions encouraging them to consider adding additional components to their idea.`; // if statements are not very good with the AI model, does them either way
+    Please provide a short 2-3 reflective statements (not questions) that will help them think more deeply about their idea. Focus on feasibility, user benefits, implementation challenges, and potential improvements. Make your questions specific to their idea components and relevant to the workshop context.` 
   } 
   else if (lowerCommand.startsWith('/creative')) {
     prompt = `You are an AI assistant helping with a design thinking workshop. ${workshopContext}The participants have created an idea with these elements:

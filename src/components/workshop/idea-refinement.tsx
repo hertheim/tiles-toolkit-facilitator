@@ -164,6 +164,48 @@ export function IdeaRefinement() {
       });
   };
   
+  // Helper function for showing help without triggering AI
+  const handleHelpCommand = () => {
+    if (isProcessing || isGeneratingWelcome || !currentIdea) return;
+    
+    // Create user help message
+    const userMessage: ChatMessage = {
+      id: uuidv4(),
+      type: 'user',
+      content: '/help',
+      timestamp: new Date()
+    };
+    
+    // Create help response message
+    const helpMessage: ChatMessage = {
+      id: uuidv4(),
+      type: 'ai',
+      content: `Available Commands:
+  - /reflect -- Get reflective questions to improve feasibility and value
+  - /creative -- Receive suggestions for alternative cards and approach variations
+  - /provoke -- Identify potential weaknesses and edge cases
+  - /help -- Display this help message
+
+You can also just chat normally without using commands.
+
+Card Selection Tips:
+  - You can select any number of cards from each category
+  - Ideas can be started with just a few cards and expanded later
+  - Try different combinations to explore various possibilities`,
+      timestamp: new Date(),
+      action: 'info'
+    };
+    
+    // Add messages to chat
+    const updatedMessages = [...messages, userMessage, helpMessage];
+    setMessages(updatedMessages);
+    
+    // Save chat history to the idea
+    updateIdea(currentIdea.id, {
+      chatHistory: updatedMessages
+    });
+  };
+  
   // Track idea changes to reset previous card combination when switching ideas
   useEffect(() => {
     if (!currentIdea) return;
@@ -643,10 +685,7 @@ Try these commands:
           variant="outline" 
           size="sm"
           disabled={isProcessing || isGeneratingWelcome}
-          onClick={() => {
-            if (isProcessing || isGeneratingWelcome) return;
-            handleAICommand('/help');
-          }}
+          onClick={handleHelpCommand}
         >
           Help
         </Button>
