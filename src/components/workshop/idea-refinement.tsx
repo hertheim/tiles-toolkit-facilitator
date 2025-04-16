@@ -79,6 +79,91 @@ export function IdeaRefinement() {
   const [currentIdeaId, setCurrentIdeaId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  // Helper function for command buttons
+  const handleAICommand = (command: string) => {
+    if (isProcessing || isGeneratingWelcome || !currentIdea) return;
+    
+    // Directly create and send the message
+    const userMessage: ChatMessage = {
+      id: uuidv4(),
+      type: 'user',
+      content: command,
+      timestamp: new Date()
+    };
+    
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    
+    // Save chat history to the idea
+    updateIdea(currentIdea.id, {
+      chatHistory: updatedMessages
+    });
+    
+    setIsProcessing(true);
+    
+    // Show typing indicator
+    const typingMessage: ChatMessage = {
+      id: 'typing',
+      type: 'system',
+      content: 'AI is thinking...',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, typingMessage]);
+    
+    // Get AI response from Ollama
+    generateAIResponse(command, currentIdea, currentWorkshop)
+      .then(aiResponse => {
+        // Remove typing indicator and add real response
+        const messagesWithResponse = [...updatedMessages, aiResponse];
+        setMessages(messagesWithResponse);
+        
+        // Save chat history to the idea
+        updateIdea(currentIdea.id, {
+          chatHistory: messagesWithResponse
+        });
+        
+        // Save as refinement
+        if (aiResponse.action && ['reflect', 'creative', 'provoke'].includes(aiResponse.action)) {
+          const newRefinement: Refinement = {
+            id: uuidv4(),
+            ideaId: currentIdea.id,
+            type: aiResponse.action as 'reflect' | 'creative' | 'provoke',
+            question: command,
+            response: aiResponse.content,
+            createdAt: new Date(),
+          };
+          
+          const updatedRefinements = [...(currentIdea.refinements || []), newRefinement];
+          updateIdea(currentIdea.id, { refinements: updatedRefinements });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to generate AI response:', error);
+        
+        // Remove typing indicator
+        setMessages(prev => prev.filter(m => m.id !== 'typing'));
+        
+        // Add error message
+        const errorMessage: ChatMessage = {
+          id: uuidv4(),
+          type: 'system',
+          content: 'Sorry, I had trouble connecting to the AI model. Please ensure Ollama is running with the mistral:instruct model installed.',
+          timestamp: new Date()
+        };
+        
+        const messagesWithError = [...updatedMessages, errorMessage];
+        setMessages(messagesWithError);
+        
+        // Save chat history to the idea
+        updateIdea(currentIdea.id, {
+          chatHistory: messagesWithError
+        });
+      })
+      .finally(() => {
+        setIsProcessing(false);
+      });
+  };
+  
   // Track idea changes to reset previous card combination when switching ideas
   useEffect(() => {
     if (!currentIdea) return;
@@ -336,8 +421,11 @@ Try these commands:
     );
   }
   
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     if (!inputValue.trim() || isProcessing) return;
     
     // Add user message to chat
@@ -514,6 +602,54 @@ Try these commands:
           </div>
         ))}
         <div ref={messagesEndRef} />
+      </div>
+      
+      {/* AI Command Buttons */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={isProcessing || isGeneratingWelcome}
+          onClick={() => {
+            if (isProcessing || isGeneratingWelcome) return;
+            handleAICommand('/reflect');
+          }}
+        >
+          Reflect
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={isProcessing || isGeneratingWelcome}
+          onClick={() => {
+            if (isProcessing || isGeneratingWelcome) return;
+            handleAICommand('/creative');
+          }}
+        >
+          Creative
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={isProcessing || isGeneratingWelcome}
+          onClick={() => {
+            if (isProcessing || isGeneratingWelcome) return;
+            handleAICommand('/provoke');
+          }}
+        >
+          Provoke
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={isProcessing || isGeneratingWelcome}
+          onClick={() => {
+            if (isProcessing || isGeneratingWelcome) return;
+            handleAICommand('/help');
+          }}
+        >
+          Help
+        </Button>
       </div>
       
       {/* Input form */}
