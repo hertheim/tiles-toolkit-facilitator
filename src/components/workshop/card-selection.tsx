@@ -10,6 +10,13 @@ import { feedbackCards } from "@/data/feedback";
 import { serviceCards } from "@/data/services";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CardType } from '@/types';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+
+// List of custom card IDs
+const CUSTOM_CARD_IDS = ["t29", "s12", "a9", "f9", "sv15", "c10", "sc18", "m13", "p17"];
 
 type CardCategoryProps = {
   cards: CardType[];
@@ -20,20 +27,33 @@ type CardCategoryProps = {
 const CardCategory = ({ cards, onSelectCard, selectedCards }: CardCategoryProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {cards.map((card) => (
-        <Card 
-          key={card.id}
-          className={`cursor-pointer transition-all ${selectedCards.some(selected => selected.id === card.id) ? 'border-2 border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
-          onClick={() => onSelectCard(card)}
-        >
-          <CardHeader className="p-4">
-            <CardTitle className="text-sm font-medium">{card.name}</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <CardDescription>{card.description}</CardDescription>
-          </CardContent>
-        </Card>
-      ))}
+      {cards.map((card) => {
+        const isCustomCard = CUSTOM_CARD_IDS.includes(card.id);
+        return (
+          <Card 
+            key={card.id}
+            className={`cursor-pointer transition-all ${
+              selectedCards.some(selected => selected.id === card.id) 
+                ? 'border-2 border-primary bg-primary/5' 
+                : isCustomCard
+                  ? 'border-dashed border-2 hover:border-primary hover:bg-primary/5'
+                  : 'hover:bg-muted/50'
+            }`}
+            onClick={() => onSelectCard(card)}
+          >
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm font-medium">{card.name}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <CardDescription>
+                {CUSTOM_CARD_IDS.includes(card.id) && card.customDescription 
+                  ? card.customDescription 
+                  : card.description}
+              </CardDescription>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
@@ -83,6 +103,13 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
     feedback: [],
     service: []
   });
+  
+  // Custom card dialog state
+  const [customCardDialogOpen, setCustomCardDialogOpen] = useState(false);
+  const [customCardCategory, setCustomCardCategory] = useState<string>('');
+  const [customCardData, setCustomCardData] = useState<CardType | null>(null);
+  const [customDescription, setCustomDescription] = useState('');
+  const [customName, setCustomName] = useState('');
 
   // Effect to initialize selected cards when initialCardCombination changes
   useEffect(() => {
@@ -174,20 +201,68 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
   }, [initialCardCombination]);
 
   const handleSelectCard = (category: string, card: CardType) => {
-    // Toggle selection (add if not selected, remove if already selected)
-    const newSelectedCards = { ...selectedCards };
-    const categoryArray = newSelectedCards[category as keyof typeof selectedCards];
+    // First check if this card is already selected
+    const categoryArray = selectedCards[category as keyof typeof selectedCards];
+    const isAlreadySelected = categoryArray.some(c => c.id === card.id);
     
-    const cardIndex = categoryArray.findIndex(c => c.id === card.id);
+    // If card is already selected, remove it regardless of whether it's custom or not
+    if (isAlreadySelected) {
+      const newSelectedCards = { ...selectedCards };
+      const updatedCategoryArray = newSelectedCards[category as keyof typeof selectedCards];
+      const cardIndex = updatedCategoryArray.findIndex(c => c.id === card.id);
+      
+      if (cardIndex >= 0) {
+        updatedCategoryArray.splice(cardIndex, 1);
+        setSelectedCards(newSelectedCards);
+      }
+      return;
+    }
+    
+    // Only show the custom card dialog for non-selected custom cards
+    if (CUSTOM_CARD_IDS.includes(card.id)) {
+      // For custom cards, open the dialog
+      setCustomCardCategory(category);
+      setCustomCardData({...card});
+      setCustomName(card.customName || card.name);
+      setCustomDescription(card.customDescription || '');
+      setCustomCardDialogOpen(true);
+      return;
+    }
+    
+    // For regular cards that aren't already selected, add them
+    const newSelectedCards = { ...selectedCards };
+    newSelectedCards[category as keyof typeof selectedCards].push(card as CardType);
+    setSelectedCards(newSelectedCards);
+  };
+  
+  const handleCustomCardConfirm = () => {
+    if (!customCardData || !customCardCategory) return;
+    
+    // Create a clone of the card with custom properties
+    const customizedCard = {
+      ...customCardData,
+      customName: customName,
+      customDescription: customDescription,
+      // Update the display name if provided
+      name: customName || customCardData.name
+    };
+    
+    // Add the card to selected cards
+    const newSelectedCards = { ...selectedCards };
+    const categoryArray = newSelectedCards[customCardCategory as keyof typeof selectedCards];
+    
+    // Check if the card is already selected
+    const cardIndex = categoryArray.findIndex(c => c.id === customizedCard.id);
     if (cardIndex >= 0) {
-      // Card is already selected, remove it
-      categoryArray.splice(cardIndex, 1);
+      // Update the existing card
+      categoryArray[cardIndex] = customizedCard as CardType;
     } else {
-      // Card is not selected, add it
-      categoryArray.push(card as CardType);
+      // Add the new card
+      categoryArray.push(customizedCard as CardType);
     }
     
     setSelectedCards(newSelectedCards);
+    setCustomCardDialogOpen(false);
   };
 
   const handleClearSelection = () => {
@@ -250,7 +325,7 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
                 <div className="flex flex-wrap gap-2">
                   {cards.map(card => (
                     <div key={card.id} className="bg-primary/10 text-primary text-sm p-2 rounded flex items-center gap-2">
-                      {card.name}
+                      {CUSTOM_CARD_IDS.includes(card.id) && (card as any).customName ? (card as any).customName : card.name}
                       <button 
                         onClick={() => handleSelectCard(category, card)}
                         className="text-primary hover:text-primary/70"
@@ -319,6 +394,55 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
           />
         </TabsContent>
       </Tabs>
+      
+      {/* Custom Card Dialog */}
+      <Dialog open={customCardDialogOpen} onOpenChange={setCustomCardDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Customize Your Card</DialogTitle>
+            <DialogDescription>
+              Provide details for your custom {customCardCategory} card.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="custom-name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="custom-name"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className="col-span-3"
+                placeholder={customCardData?.name || 'Custom name'}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="custom-description" className="text-right">
+                Description
+              </Label>
+              <Textarea
+                id="custom-description"
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+                className="col-span-3"
+                placeholder="Describe your custom card"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomCardDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCustomCardConfirm}>
+              Save Card
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <div className="flex justify-between">
         <Button variant="outline" onClick={handleClearSelection}>

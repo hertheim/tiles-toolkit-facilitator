@@ -56,8 +56,8 @@ export const actionCards: ActionCard[] = [
   },
   {
     id: "a9",
-    type: "Human Actions",
+    type: "Action",
     name: "Custom Action",
-    description: "Sketch or describe your new human action here."
+    description: "Click to add your own custom action and provide a description."
   }
 ]; 

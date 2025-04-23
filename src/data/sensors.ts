@@ -76,6 +76,6 @@ export const sensorCards: SensorCard[] = [
     id: "s12",
     type: "Sensor",
     name: "Custom Sensor",
-    description: "Sketch or describe your new sensor here."
+    description: "Click to add your own custom sensor and provide a description."
   }
 ]; 
