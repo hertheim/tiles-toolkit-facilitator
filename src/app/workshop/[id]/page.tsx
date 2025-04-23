@@ -191,7 +191,8 @@ export default function WorkshopPage() {
           serviceCards?: CardType[];
         },
         title,
-        description
+        description,
+        cardsUpdated: true,
       });
       
       toast.success('Idea updated');

@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useWorkshop } from '@/lib/workshop-context';
 import { Idea, Refinement, ChatMessage, Workshop } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
@@ -66,7 +65,6 @@ const generateAIResponse = async (command: string, idea: Idea, workshop: Worksho
 export function IdeaRefinement() {
   const { currentIdea, currentWorkshop, updateIdea } = useWorkshop();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGeneratingWelcome, setIsGeneratingWelcome] = useState(false);
   const [previousCardCombination, setPreviousCardCombination] = useState<{
@@ -76,19 +74,208 @@ export function IdeaRefinement() {
     feedback?: FeedbackCard;
     service?: ServiceCard;
   } | null>(null);
+  const [currentIdeaId, setCurrentIdeaId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Helper function for command buttons
+  const handleAICommand = (command: string) => {
+    if (isProcessing || isGeneratingWelcome || !currentIdea) return;
+    
+    // Directly create and send the message
+    const userMessage: ChatMessage = {
+      id: uuidv4(),
+      type: 'user',
+      content: command,
+      timestamp: new Date()
+    };
+    
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    
+    // Save chat history to the idea
+    updateIdea(currentIdea.id, {
+      chatHistory: updatedMessages
+    });
+    
+    setIsProcessing(true);
+    
+    // Show typing indicator
+    const typingMessage: ChatMessage = {
+      id: 'typing',
+      type: 'system',
+      content: 'AI is thinking...',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, typingMessage]);
+    
+    // Get AI response from Ollama
+    generateAIResponse(command, currentIdea, currentWorkshop)
+      .then(aiResponse => {
+        // Remove typing indicator and add real response
+        const messagesWithResponse = [...updatedMessages, aiResponse];
+        setMessages(messagesWithResponse);
+        
+        // Save chat history to the idea
+        updateIdea(currentIdea.id, {
+          chatHistory: messagesWithResponse
+        });
+        
+        // Save as refinement
+        if (aiResponse.action && ['reflect', 'creative', 'provoke'].includes(aiResponse.action)) {
+          const newRefinement: Refinement = {
+            id: uuidv4(),
+            ideaId: currentIdea.id,
+            type: aiResponse.action as 'reflect' | 'creative' | 'provoke',
+            question: command,
+            response: aiResponse.content,
+            createdAt: new Date(),
+          };
+          
+          const updatedRefinements = [...(currentIdea.refinements || []), newRefinement];
+          updateIdea(currentIdea.id, { refinements: updatedRefinements });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to generate AI response:', error);
+        
+        // Remove typing indicator
+        setMessages(prev => prev.filter(m => m.id !== 'typing'));
+        
+        // Add error message
+        const errorMessage: ChatMessage = {
+          id: uuidv4(),
+          type: 'system',
+          content: 'Sorry, I had trouble connecting to the AI model. Please ensure Ollama is running with the mistral:instruct model installed.',
+          timestamp: new Date()
+        };
+        
+        const messagesWithError = [...updatedMessages, errorMessage];
+        setMessages(messagesWithError);
+        
+        // Save chat history to the idea
+        updateIdea(currentIdea.id, {
+          chatHistory: messagesWithError
+        });
+      })
+      .finally(() => {
+        setIsProcessing(false);
+      });
+  };
+  
+  // Helper function for showing help without triggering AI
+  const handleHelpCommand = () => {
+    if (isProcessing || isGeneratingWelcome || !currentIdea) return;
+    
+    // Create user help message
+    const userMessage: ChatMessage = {
+      id: uuidv4(),
+      type: 'user',
+      content: '/help',
+      timestamp: new Date()
+    };
+    
+    // Create help response message
+    const helpMessage: ChatMessage = {
+      id: uuidv4(),
+      type: 'ai',
+      content: `Available Buttons:
+  - Reflect -- Get reflective questions to improve feasibility and value
+  - Provoke -- Identify potential weaknesses and edge cases
+  - Creative -- Receive suggestions for alternative cards and approach variations
+  - Help -- Display this help message
+
+You can also just chat normally without using commands.
+
+Card Selection Tips:
+  - You can select any number of cards from each category
+  - Ideas can be started with just a few cards and expanded later
+  - Try different combinations to explore various possibilities`,
+      timestamp: new Date(),
+      action: 'info'
+    };
+    
+    // Add messages to chat
+    const updatedMessages = [...messages, userMessage, helpMessage];
+    setMessages(updatedMessages);
+    
+    // Save chat history to the idea
+    updateIdea(currentIdea.id, {
+      chatHistory: updatedMessages
+    });
+  };
+  
+  // Track idea changes to reset previous card combination when switching ideas
+  useEffect(() => {
+    if (!currentIdea) return;
+    
+    // If we've switched to a different idea, reset the previous card combination
+    if (currentIdeaId !== currentIdea.id) {
+      setPreviousCardCombination(null);
+      setCurrentIdeaId(currentIdea.id);
+    }
+  }, [currentIdea, currentIdeaId]);
   
   // Track card changes to detect edits in the ideation phase
   useEffect(() => {
     if (!currentIdea) return;
     
-    // Initialize previous card combination on first load
+    // Initialize previous card combination on first load or when switching ideas
     if (!previousCardCombination) {
       setPreviousCardCombination(currentIdea.cardCombination);
       return;
     }
     
-    // Check if card combination has changed
+    // Skip if we're not looking at the same idea as before
+    if (currentIdeaId !== currentIdea.id) {
+      return;
+    }
+    
+    // Check if the cardsUpdated flag is set, indicating cards were updated from outside
+    if (currentIdea.cardsUpdated) {
+      // Add a system message about the card change
+      const changedCardMessage: ChatMessage = {
+        id: uuidv4(),
+        type: 'system',
+        content: 'Card combination has been updated. The AI will consider these changes.',
+        timestamp: new Date(),
+      };
+      
+      // Send AI a message to acknowledge the changes
+      const notifyAI = async () => {
+        setIsProcessing(true);
+        
+        try {
+          // Generate AI response acknowledging the changes
+          const aiResponse = await generateAIResponse(
+            'The idea\'s card combination has been updated. Please provide feedback on the new combination.', 
+            currentIdea, 
+            currentWorkshop
+          );
+          
+          // Add both messages to the chat
+          const updatedMessages = [...messages, changedCardMessage, aiResponse];
+          setMessages(updatedMessages);
+          
+          // Save to idea and clear the cardsUpdated flag
+          updateIdea(currentIdea.id, {
+            chatHistory: updatedMessages,
+            cardsUpdated: false
+          });
+        } catch (error) {
+          console.error('Failed to notify AI about card changes:', error);
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      
+      notifyAI();
+      
+      // Update the previous card combination
+      setPreviousCardCombination(currentIdea.cardCombination);
+      return;
+    }
+    
+    // Original card combination change detection
     const hasCardCombinationChanged = () => {
       if (!previousCardCombination) return false;
       
@@ -174,7 +361,7 @@ export function IdeaRefinement() {
       // (this happens for the first load or if there's no chat history yet)
       setPreviousCardCombination(currentIdea.cardCombination);
     }
-  }, [currentIdea, currentWorkshop, messages, updateIdea, previousCardCombination]);
+  }, [currentIdea, currentWorkshop, messages, updateIdea, previousCardCombination, currentIdeaId]);
   
   // Initialize messages from idea's chat history or create welcome message
   useEffect(() => {
@@ -205,11 +392,11 @@ export function IdeaRefinement() {
               // Fallback if workshop context is not available
               welcomeContent = `Welcome to the Idea Refinement chat! I'll help you refine your idea "${currentIdea.title}" through interactive feedback.
 
-Try these commands:
-- Type **/reflect** for reflective questions
-- Type **/creative** for alternative approaches
-- Type **/provoke** to challenge assumptions
-- Type **/help** for more information`;
+Use the buttons below to:
+- Get reflective questions to improve feasibility and value
+- Challenge assumptions and identify potential weaknesses
+- Receive suggestions for alternative approaches
+- View help information about available commands`;
             }
             
             // Create the welcome message
@@ -235,11 +422,11 @@ Try these commands:
               type: 'system',
               content: `Welcome to the Idea Refinement chat! I'll help you refine your idea "${currentIdea.title}" through interactive feedback.
 
-Try these commands:
-- Type **/reflect** for reflective questions
-- Type **/creative** for alternative approaches
-- Type **/provoke** to challenge assumptions
-- Type **/help** for more information`,
+Use the buttons below to:
+- Get reflective questions to improve feasibility and value
+- Challenge assumptions and identify potential weaknesses
+- Receive suggestions for alternative approaches
+- View help information about available commands`,
               timestamp: new Date(),
               action: 'info'
             };
@@ -274,96 +461,13 @@ Try these commands:
     );
   }
   
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim() || isProcessing) return;
-    
-    // Add user message to chat
-    const userMessage: ChatMessage = {
-      id: uuidv4(),
-      type: 'user',
-      content: inputValue,
-      timestamp: new Date()
-    };
-    
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-    
-    // Save chat history to the idea
-    updateIdea(currentIdea.id, {
-      chatHistory: updatedMessages
-    });
-    
-    setInputValue('');
-    setIsProcessing(true);
-    
-    try {
-      // Show typing indicator
-      const typingMessage: ChatMessage = {
-        id: 'typing',
-        type: 'system',
-        content: 'AI is thinking...',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, typingMessage]);
-      
-      // Get AI response from Ollama
-      const aiResponse = await generateAIResponse(inputValue, currentIdea, currentWorkshop);
-      
-      // Remove typing indicator and add real response
-      const messagesWithResponse = [...updatedMessages, aiResponse];
-      setMessages(messagesWithResponse);
-      
-      // Save chat history to the idea
-      updateIdea(currentIdea.id, {
-        chatHistory: messagesWithResponse
-      });
-      
-      // Save as refinement if it's a meaningful AI guidance
-      if (aiResponse.action && ['reflect', 'creative', 'provoke'].includes(aiResponse.action)) {
-        const newRefinement: Refinement = {
-          id: uuidv4(),
-          ideaId: currentIdea.id,
-          type: aiResponse.action as 'reflect' | 'creative' | 'provoke',
-          question: inputValue,
-          response: aiResponse.content,
-          createdAt: new Date(),
-        };
-        
-        const updatedRefinements = [...(currentIdea.refinements || []), newRefinement];
-        updateIdea(currentIdea.id, { refinements: updatedRefinements });
-      }
-    } catch (error) {
-      console.error('Failed to generate AI response:', error);
-      
-      // Remove typing indicator
-      setMessages(prev => prev.filter(m => m.id !== 'typing'));
-      
-      // Add error message
-      const errorMessage: ChatMessage = {
-        id: uuidv4(),
-        type: 'system',
-        content: 'Sorry, I had trouble connecting to the AI model. Please ensure Ollama is running with the mistral:instruct model installed.',
-        timestamp: new Date()
-      };
-      
-      const messagesWithError = [...updatedMessages, errorMessage];
-      setMessages(messagesWithError);
-      
-      // Save chat history to the idea
-      updateIdea(currentIdea.id, {
-        chatHistory: messagesWithError
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-  
-  const handleCardSuggestionClick = (card: ThingCard | SensorCard | ActionCard, category: string) => {
-    const categoryMapping: Record<string, 'thing' | 'sensor' | 'action'> = {
+  const handleCardSuggestionClick = (card: ThingCard | SensorCard | ActionCard | FeedbackCard | ServiceCard, category: string) => {
+    const categoryMapping: Record<string, 'thing' | 'sensor' | 'action' | 'feedback' | 'service'> = {
       'thing': 'thing',
       'sensor': 'sensor',
-      'action': 'action'
+      'action': 'action',
+      'feedback': 'feedback',
+      'service': 'service'
     };
     
     const mappedCategory = categoryMapping[category];
@@ -399,7 +503,7 @@ Try these commands:
       <div className="mb-4">
         <h2 className="text-2xl font-bold mb-2">Refine: {currentIdea.title}</h2>
         <p className="text-muted-foreground">
-          Chat with Mistral AI to refine your idea through reflective questions and creative suggestions.
+          Use the buttons below to get AI feedback on your idea through reflective questions and creative suggestions.
         </p>
       </div>
       
@@ -454,19 +558,50 @@ Try these commands:
         <div ref={messagesEndRef} />
       </div>
       
-      {/* Input form */}
-      <form onSubmit={handleSendMessage} className="flex gap-2">
-        <Input
-          placeholder={isProcessing || isGeneratingWelcome ? "AI is thinking..." : "Type a message or command (e.g., /reflect, /creative)"}
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+      {/* AI Command Buttons */}
+      <div className="flex flex-wrap gap-2">
+        <Button 
+          variant="outline" 
+          size="sm"
           disabled={isProcessing || isGeneratingWelcome}
-          className="flex-1"
-        />
-        <Button type="submit" disabled={isProcessing || isGeneratingWelcome}>
-          Send
+          onClick={() => {
+            if (isProcessing || isGeneratingWelcome) return;
+            handleAICommand('/reflect');
+          }}
+        >
+          Reflect
         </Button>
-      </form>
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={isProcessing || isGeneratingWelcome}
+          onClick={() => {
+            if (isProcessing || isGeneratingWelcome) return;
+            handleAICommand('/provoke');
+          }}
+        >
+          Provoke
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={isProcessing || isGeneratingWelcome}
+          onClick={() => {
+            if (isProcessing || isGeneratingWelcome) return;
+            handleAICommand('/creative');
+          }}
+        >
+          Creative
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={isProcessing || isGeneratingWelcome}
+          onClick={handleHelpCommand}
+        >
+          Help
+        </Button>
+      </div>
     </div>
   );
 } 

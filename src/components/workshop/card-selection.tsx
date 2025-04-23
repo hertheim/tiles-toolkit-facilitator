@@ -111,6 +111,9 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
   const [customDescription, setCustomDescription] = useState('');
   const [customName, setCustomName] = useState('');
 
+  // Confirmation dialog for clear selection
+  const [clearConfirmDialogOpen, setClearConfirmDialogOpen] = useState(false);
+
   // Effect to initialize selected cards when initialCardCombination changes
   useEffect(() => {
     if (initialCardCombination) {
@@ -200,6 +203,59 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
     }
   }, [initialCardCombination]);
 
+  // Function to check if the selected cards are different from the initial card combination
+  const hasCardCombinationChanged = () => {
+    if (!isEditing || !initialCardCombination) return true; // If not editing, changes aren't relevant
+    
+    const categories = ['thing', 'sensor', 'action', 'feedback', 'service'] as const;
+    
+    // Check if the number of cards in any category has changed
+    for (const category of categories) {
+      const initialCount = initialCardCombination[`${category}Cards`]?.length || 
+                          (initialCardCombination[category] ? 1 : 0);
+      const currentCount = selectedCards[category].length;
+      
+      if (initialCount !== currentCount) return true;
+    }
+    
+    // Check if the cards themselves have changed in any category
+    for (const category of categories) {
+      const currentCategoryCards = selectedCards[category];
+      
+      // Get initial cards, either as an array or as a single card
+      let initialCategoryCards: typeof thingCards[0][] = [];
+      
+      if (initialCardCombination[`${category}Cards`]?.length) {
+        initialCategoryCards = initialCardCombination[`${category}Cards`] as typeof thingCards[0][];
+      } else if (initialCardCombination[category]) {
+        initialCategoryCards = [initialCardCombination[category] as typeof thingCards[0]];
+      }
+      
+      // If the arrays have different lengths, they're different
+      if (initialCategoryCards.length !== currentCategoryCards.length) return true;
+      
+      // Compare each card by ID
+      for (const currentCard of currentCategoryCards) {
+        const matchingCard = initialCategoryCards.find(c => c.id === currentCard.id);
+        
+        // If this card doesn't exist in the initial set, or its custom data changed
+        if (!matchingCard) return true;
+        
+        // Check for custom card changes
+        if (CUSTOM_CARD_IDS.includes(currentCard.id)) {
+          if (
+            (currentCard as any).customName !== (matchingCard as any).customName ||
+            (currentCard as any).customDescription !== (matchingCard as any).customDescription
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+    
+    return false;
+  };
+
   const handleSelectCard = (category: string, card: CardType) => {
     // First check if this card is already selected
     const categoryArray = selectedCards[category as keyof typeof selectedCards];
@@ -274,6 +330,7 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
       service: []
     });
     setActiveTab('things');
+    setClearConfirmDialogOpen(false);
   };
 
   const isValid = () => {
@@ -344,6 +401,32 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
           )}
         </div>
       </div>
+
+      <div className="flex justify-between">
+        <Button 
+          variant="outline" 
+          onClick={() => {
+            // Only show confirmation if there are cards selected
+            const hasSelectedCards = Object.values(selectedCards).some(
+              categoryCards => categoryCards.length > 0
+            );
+            
+            if (hasSelectedCards) {
+              setClearConfirmDialogOpen(true);
+            }
+          }}
+          disabled={Object.values(selectedCards).every(categoryCards => categoryCards.length === 0)}
+        >
+          Clear Selection
+        </Button>
+        
+        <Button 
+          onClick={() => onCombinationComplete(prepareCardCombination())}
+          disabled={!isValid() || (isEditing && !hasCardCombinationChanged())}
+        >
+          {isEditing ? 'Update Idea' : 'Save Combination'}
+        </Button>
+      </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-5 w-full">
@@ -395,6 +478,27 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
         </TabsContent>
       </Tabs>
       
+      {/* Clear Selection Confirmation Dialog */}
+      <Dialog open={clearConfirmDialogOpen} onOpenChange={setClearConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Clear Selection</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to clear all selected cards? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setClearConfirmDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleClearSelection}>
+              Clear All Cards
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Custom Card Dialog */}
       <Dialog open={customCardDialogOpen} onOpenChange={setCustomCardDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -443,19 +547,6 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handleClearSelection}>
-          Clear Selection
-        </Button>
-        
-        <Button 
-          onClick={() => onCombinationComplete(prepareCardCombination())}
-          disabled={!isValid()}
-        >
-          {isEditing ? 'Update Idea' : 'Save Combination'}
-        </Button>
-      </div>
     </div>
   );
 } 
