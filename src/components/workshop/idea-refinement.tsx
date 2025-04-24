@@ -11,7 +11,7 @@ import { ActionCard } from "@/data/actions";
 import { FeedbackCard } from "@/data/feedback";
 import { ServiceCard } from "@/data/services";
 import { generateAIFeedback, generateWelcomeMessage } from '@/lib/ollama-service';
-import { parseCardSuggestions } from '@/lib/parse-suggestions';
+import ReactMarkdown from 'react-markdown';
 
 // Generate AI feedback using Ollama with mistral:instruct
 const generateAIResponse = async (command: string, idea: Idea, workshop: Workshop | null): Promise<ChatMessage> => {
@@ -27,26 +27,32 @@ const generateAIResponse = async (command: string, idea: Idea, workshop: Worksho
   const lowerCommand = command.toLowerCase();
   
   try {
-    const response = await generateAIFeedback(command, idea, workshop || undefined);
-    message.content = response;
-    
-    if (lowerCommand.startsWith('/reflect')) {
+    // Prefix internal commands with / for the backend processing
+    let backendCommand = command;
+    if (lowerCommand === 'reflect') {
+      backendCommand = '/reflect';
       message.action = 'reflect';
     } 
-    else if (lowerCommand.startsWith('/creative')) {
+    else if (lowerCommand === 'creative' || lowerCommand === 'card suggestions') {
+      backendCommand = '/creative';
       message.action = 'creative';
-      // Parse card suggestions from AI response
-      message.cardSuggestions = parseCardSuggestions(response);
-    } 
-    else if (lowerCommand.startsWith('/provoke')) {
+    }
+    else if (lowerCommand === 'provoke') {
+      backendCommand = '/provoke';
       message.action = 'provoke';
     }
-    else if (lowerCommand.startsWith('/help')) {
+    else if (lowerCommand === 'help') {
+      backendCommand = '/help';
       message.action = 'info';
     }
     else {
       message.action = 'suggestion';
     }
+    
+    const response = await generateAIFeedback(backendCommand, idea, workshop || undefined);
+    message.content = response;
+    
+    // We're no longer parsing card suggestions for interactive display
     
     return message;
   } catch (error) {
@@ -85,7 +91,7 @@ export function IdeaRefinement() {
     const userMessage: ChatMessage = {
       id: uuidv4(),
       type: 'user',
-      content: command,
+      content: command, // No need to prefix with /
       timestamp: new Date()
     };
     
@@ -170,7 +176,7 @@ export function IdeaRefinement() {
     const userMessage: ChatMessage = {
       id: uuidv4(),
       type: 'user',
-      content: '/help',
+      content: 'Help',
       timestamp: new Date()
     };
     
@@ -178,18 +184,12 @@ export function IdeaRefinement() {
     const helpMessage: ChatMessage = {
       id: uuidv4(),
       type: 'ai',
-      content: `Available Buttons:
-  - Reflect -- Get reflective questions to improve feasibility and value
-  - Provoke -- Identify potential weaknesses and edge cases
-  - Creative -- Receive suggestions for alternative cards and approach variations
-  - Help -- Display this help message
+      content: `**Available Buttons:**
 
-You can also just chat normally without using commands.
-
-Card Selection Tips:
-  - You can select any number of cards from each category
-  - Ideas can be started with just a few cards and expanded later
-  - Try different combinations to explore various possibilities`,
+- **Reflect** - Get questions to improve your idea
+- **Provoke** - Identify potential weaknesses
+- **Card Suggestions** - See alternative card combinations to consider
+- **Help** - Show this message`,
       timestamp: new Date(),
       action: 'info'
     };
@@ -390,13 +390,16 @@ Card Selection Tips:
               welcomeContent = await generateWelcomeMessage(currentIdea, currentWorkshop);
             } else {
               // Fallback if workshop context is not available
-              welcomeContent = `Welcome to the Idea Refinement chat! I'll help you refine your idea "${currentIdea.title}" through interactive feedback.
+              welcomeContent = `**Welcome to the Idea Refinement for "${currentIdea.title}"!**
 
-Use the buttons below to:
-- Get reflective questions to improve feasibility and value
-- Challenge assumptions and identify potential weaknesses
-- Receive suggestions for alternative approaches
-- View help information about available commands`;
+I'll help you refine your idea through interactive feedback.
+
+Use the buttons below:
+
+- **Reflect** - Get questions about feasibility and value
+- **Provoke** - Challenge assumptions and identify weaknesses
+- **Card Suggestions** - See alternative card combinations to consider
+- **Help** - View information about available options`;
             }
             
             // Create the welcome message
@@ -420,13 +423,16 @@ Use the buttons below to:
             const fallbackMessage: ChatMessage = {
               id: uuidv4(),
               type: 'system',
-              content: `Welcome to the Idea Refinement chat! I'll help you refine your idea "${currentIdea.title}" through interactive feedback.
+              content: `**Welcome to the Idea Refinement for "${currentIdea.title}"!**
 
-Use the buttons below to:
-- Get reflective questions to improve feasibility and value
-- Challenge assumptions and identify potential weaknesses
-- Receive suggestions for alternative approaches
-- View help information about available commands`,
+I'll help you refine your idea through interactive feedback.
+
+Use the buttons below:
+
+- **Reflect** - Get questions about feasibility and value
+- **Provoke** - Challenge assumptions and identify weaknesses
+- **Card Suggestions** - See alternative card combinations to consider
+- **Help** - View information about available options`,
               timestamp: new Date(),
               action: 'info'
             };
@@ -461,49 +467,87 @@ Use the buttons below to:
     );
   }
   
-  const handleCardSuggestionClick = (card: ThingCard | SensorCard | ActionCard | FeedbackCard | ServiceCard, category: string) => {
-    const categoryMapping: Record<string, 'thing' | 'sensor' | 'action' | 'feedback' | 'service'> = {
-      'thing': 'thing',
-      'sensor': 'sensor',
-      'action': 'action',
-      'feedback': 'feedback',
-      'service': 'service'
-    };
-    
-    const mappedCategory = categoryMapping[category];
-    if (!mappedCategory) return;
-    
-    // Update the idea with the suggested card
-    const cardCombination = {
-      ...currentIdea.cardCombination,
-      [mappedCategory]: card
-    };
-    
-    // Add confirmation message
-    const confirmMessage: ChatMessage = {
-      id: uuidv4(),
-      type: 'system',
-      content: `Added ${card.name} as a new ${category} for your idea. The card combination has been updated.`,
-      timestamp: new Date(),
-      action: 'info'
-    };
-    
-    const updatedMessages = [...messages, confirmMessage];
-    setMessages(updatedMessages);
-    
-    // Update the idea with both the new card and the updated chat history
-    updateIdea(currentIdea.id, { 
-      cardCombination, 
-      chatHistory: updatedMessages 
-    });
-  };
-  
   return (
     <div className="flex flex-col h-[calc(100vh-300px)]">
+      <style jsx global>{`
+        .markdown-content {
+          width: 100%;
+        }
+        .markdown-content p {
+          margin-bottom: 0.75rem;
+        }
+        .markdown-content ul, .markdown-content ol {
+          margin-top: 0.5rem;
+          margin-bottom: 0.75rem;
+          padding-left: 1.5rem;
+        }
+        .markdown-content li {
+          margin-bottom: 0.25rem;
+        }
+        .markdown-content strong {
+          font-weight: 600;
+        }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3,
+        .markdown-content h4, .markdown-content h5, .markdown-content h6 {
+          margin-top: 1.5rem;
+          margin-bottom: 0.75rem;
+          font-weight: 600;
+          line-height: 1.25;
+        }
+        .markdown-content h1 {
+          font-size: 1.5rem;
+        }
+        .markdown-content h2 {
+          font-size: 1.3rem;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+          padding-bottom: 0.3rem;
+        }
+        .markdown-content h3 {
+          font-size: 1.15rem;
+          color: inherit;
+          margin-top: 1.2rem;
+          background: rgba(0, 0, 0, 0.03);
+          padding: 0.5rem;
+          border-radius: 0.25rem;
+        }
+        .markdown-content h3 + p,
+        .markdown-content h3 + strong {
+          margin-top: 0.5rem;
+        }
+        .markdown-content h4 {
+          font-size: 1rem;
+        }
+        .markdown-content h5, .markdown-content h6 {
+          font-size: 0.9rem;
+        }
+        .markdown-content p:last-child, 
+        .markdown-content ul:last-child, 
+        .markdown-content ol:last-child,
+        .markdown-content li:last-child,
+        .markdown-content h1:last-child,
+        .markdown-content h2:last-child,
+        .markdown-content h3:last-child,
+        .markdown-content h4:last-child,
+        .markdown-content h5:last-child,
+        .markdown-content h6:last-child {
+          margin-bottom: 0;
+        }
+        /* Style for card suggestions specifically */
+        .markdown-content h2:first-child + h3,
+        .markdown-content h2 + h3 {
+          margin-top: 0.8rem;
+        }
+        .markdown-content strong + br + strong,
+        .markdown-content strong + strong {
+          margin-top: 0.25rem;
+          display: block;
+        }
+      `}</style>
+      
       <div className="mb-4">
         <h2 className="text-2xl font-bold mb-2">Refine: {currentIdea.title}</h2>
         <p className="text-muted-foreground">
-          Use the buttons below to get AI feedback on your idea through reflective questions and creative suggestions.
+          Use the buttons below to get AI feedback on your idea through reflective questions, provocative challenges, and alternative card combinations.
         </p>
       </div>
       
@@ -523,31 +567,11 @@ Use the buttons below to:
                     : 'bg-secondary text-secondary-foreground'
               }`}
             >
-              <div className="whitespace-pre-wrap">{message.content}</div>
-              
-              {/* Render card suggestions if any */}
-              {message.cardSuggestions && message.cardSuggestions.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {message.cardSuggestions.map((category) => (
-                    <div key={category.category} className="space-y-2">
-                      <div className="font-medium">{category.category.charAt(0).toUpperCase() + category.category.slice(1)} Suggestions:</div>
-                      <div className="flex flex-wrap gap-2">
-                        {category.cards.map((card) => (
-                          <Button 
-                            key={card.id} 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleCardSuggestionClick(card, category.category)}
-                            className="text-xs"
-                          >
-                            {card.name}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="markdown-content">
+                <ReactMarkdown>
+                  {message.content}
+                </ReactMarkdown>
+              </div>
               
               <div className="text-xs opacity-70 mt-1">
                 {new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -566,7 +590,7 @@ Use the buttons below to:
           disabled={isProcessing || isGeneratingWelcome}
           onClick={() => {
             if (isProcessing || isGeneratingWelcome) return;
-            handleAICommand('/reflect');
+            handleAICommand('reflect');
           }}
         >
           Reflect
@@ -577,7 +601,7 @@ Use the buttons below to:
           disabled={isProcessing || isGeneratingWelcome}
           onClick={() => {
             if (isProcessing || isGeneratingWelcome) return;
-            handleAICommand('/provoke');
+            handleAICommand('provoke');
           }}
         >
           Provoke
@@ -588,10 +612,10 @@ Use the buttons below to:
           disabled={isProcessing || isGeneratingWelcome}
           onClick={() => {
             if (isProcessing || isGeneratingWelcome) return;
-            handleAICommand('/creative');
+            handleAICommand('card suggestions');
           }}
         >
-          Creative
+          Card Suggestions
         </Button>
         <Button 
           variant="outline" 
