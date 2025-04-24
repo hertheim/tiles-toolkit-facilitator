@@ -84,6 +84,23 @@ const getSelectedCardsList = (idea: Idea): string => {
   return cardComponents.join('\n    - ');
 };
 
+// Create a separate helper to handle card combination directly
+const getSelectedCardsListFromCombination = (cardCombination: Idea['cardCombination']): string => {
+  // Create a temporary idea object with just the necessary fields
+  const tempIdea: Idea = {
+    id: '',
+    workshopId: '',
+    title: '',
+    description: '',
+    cardCombination,
+    refinements: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+  
+  return getSelectedCardsList(tempIdea);
+};
+
 /**
  * Generate a welcome message for a new idea using the workshop context
  */
@@ -107,14 +124,14 @@ The participants have created a new idea with the following components:
 Idea Title: "${idea.title}"
 Idea Description: "${idea.description}"
 
-Please generate a short welcoming first message that:
-1. Acknowledges their idea and its components
-2. References the workshop context (mission, persona, scenario) 
-3. Briefly and concisely explains how you can help them refine this idea
-4. States the available trigger buttons (Reflect, Provoke, Creative, Help)
-5. If they have only selected a few cards, encourage them briefly to consider adding more cards as they refine the idea
+Generate a concise welcome message (under 75 words) using proper markdown formatting:
+1. Start with a clear greeting using **bold** markdown syntax for emphasis
+2. Add a brief sentence about their idea's core components 
+3. Mention the workshop mission
+4. List the buttons they can use (Reflect, Card Suggestions, Provoke, Help) as a markdown bulleted list using "- " for bullets
+5. Use blank lines between paragraphs for proper spacing
 
-Keep your response conversational, encouraging, and under 150 words.`;
+Be direct, friendly, and ensure the markdown is correctly formatted.`;
 
   try {
     const response = await fetch(OLLAMA_API_URL, {
@@ -143,13 +160,14 @@ Keep your response conversational, encouraging, and under 150 words.`;
   } catch (error) {
     console.error('Error generating welcome message:', error);
     // Fallback message if AI fails
-    return `Welcome to the Idea Refinement chat! I'll help you refine your idea "${idea.title}" through interactive feedback.
+    return `**Welcome to refinement for "${idea.title}"!**
 
-Try these commands:
-- Type "/reflect" for reflective questions
-- Type "/creative" for alternative approaches
-- Type "/provoke" to challenge assumptions
-- Type "/help" for more information`;
+Use the buttons below:
+
+- **Reflect** - for reflection on your idea
+- **Card Suggestions** - for alternative ideas
+- **Provoke** - for challenges
+- **Help** - for more info`;
   }
 };
 
@@ -185,11 +203,11 @@ Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
     The idea title is: "${idea.title}"
     Description: "${idea.description}"
     
-    The idea's card combination has just been updated. The message tells you: "${command}"
+    The idea's card combination has just been updated: "${command}"
     
-    Please acknowledge these changes with enthusiasm and specifically mention how these modifications could impact the idea. Be specific about how the new card combination might create new opportunities or address challenges differently. Suggest 1-2 quick thoughts about the implications of these changes, and remind the user they can use commands like /reflect or /creative to explore the updated idea further.
+    Acknowledge these changes in 1-2 sentences (maximum 50 words). Be specific about one key implication of these changes.
     
-    Keep your response encouraging and under 150 words.`;
+    Format your response with proper markdown: use blank lines between paragraphs and **bold** for emphasis.`;
   }
   else if (lowerCommand.startsWith('/reflect')) {
     prompt = `You are an AI assistant helping with a design thinking workshop. ${workshopContext}The participants have created an idea with these elements:
@@ -198,23 +216,57 @@ Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
     The idea title is: "${idea.title}"
     Description: "${idea.description}"
     
-    Please provide a short 2 reflective statements (not questions) that will help them think more deeply about their idea. Focus on feasibility, user benefits, implementation challenges, and potential improvements. Make your questions specific to their idea components and relevant to the workshop context.` 
+    Provide 2 brief reflective statements to help them think more deeply about their idea. Focus on feasibility and user benefits.
+    
+    Format your response using markdown:
+    1. Add a header "#### Reflective Statements"
+    2. One statement per bullet point, stating with bold text
+    3. Use markdown bullet points (using "- " syntax)
+    4. Keep each statement under 15 words
+    5. Bold any key words using **word** syntax
+    6. Include a blank line before the bullet list`;
   } 
   else if (lowerCommand.startsWith('/creative')) {
-    prompt = `You are an AI assistant helping with a design thinking workshop. ${workshopContext}The participants have created an idea with these elements:
-    - ${selectedCards}
+    prompt = `Based on the idea "${idea.title}" with description "${idea.description}", 
+    suggest specific alternative cards that would enhance or create interesting variations of this idea.
     
-    The idea title is: "${idea.title}"
-    Description: "${idea.description}"
+    Current cards:
+    ${getSelectedCardsListFromCombination(idea.cardCombination)}
     
-    Please suggest alternative approaches to their idea that align with the workshop context. If they've already selected cards for specific categories, suggest alternatives for those categories. For any categories they haven't selected yet, recommend some initial options.
+    Mission: "${workshop?.mission?.goal || ''}"
+    Persona: "${workshop?.persona?.name || ''}"
     
-    Specifically:
-    1. Suggest 2 alternative or additional "things" they could use
-    2. Suggest 2 alternative or additional "sensors" they could incorporate
-    3. Suggest 1-2 ways to combine these alternatives to expand or enhance their original idea
+    I need you to recommend EXACTLY 2 different card combinations for alternative ideas. For each combination:
+    1. Give it a brief, descriptive name
+    2. Suggest specific card names from the TILES deck that would work well together
+    3. Only mark cards as (CUSTOM) if they don't exist in the TILES deck
     
-    Be specific and creative in your suggestions, explaining how they could enhance the core concept while staying true to the workshop mission and persona needs.`;
+    YOU MUST FOLLOW THIS EXACT FORMAT - DO NOT DEVIATE:
+    
+    ### Alternative 1: [Brief Name]
+    
+    **Thing**: Card Name
+    **Sensor**: Card Name
+    **Action**: Card Name
+    **Feedback**: Card Name
+    **Service**: Card Name
+    
+    ### Alternative 2: [Brief Name]
+    
+    **Thing**: Card Name
+    **Sensor**: Card Name
+    **Action**: Card Name
+    **Feedback**: Card Name
+    **Service**: Card Name
+    
+    Important: Please suggest specific, actual card names from the TILES deck (like "Clothing", "Motion", "Vibration", "Text", "Data Collection"). Only mark a card as (CUSTOM) if you're suggesting something not in the standard deck. Don't explain how the cards work together - just list them by name.
+    
+    Some examples of cards in each category:
+    - Things: Clothing, Luggage, Watch, Bike, Coffee Cup, Eyewear, Plant, Umbrella, Furniture
+    - Sensors: Location, Temperature, Motion, Distance, Sound, Weight, Air Pollution
+    - Actions: Vibration, Light, Sound, Notification, Movement
+    - Feedback: Text, Voice, Light, Color, Sound, Haptic
+    - Services: Data Collection, Sharing, Personalization, Community`;
   } 
   else if (lowerCommand.startsWith('/provoke')) {
     prompt = `You are an AI assistant helping with a design thinking workshop. ${workshopContext}The participants have created an idea with these elements:
@@ -223,15 +275,14 @@ Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
     The idea title is: "${idea.title}"
     Description: "${idea.description}"
     
-    Please challenge their thinking by stating 2 provocative statements about:
-    - Potential privacy or ethical concerns
-    - Technical limitations or failures
-    - Unintended consequences
-    - User confusion or misuse
-    - Edge cases or accessibility issues
-    - Alignment with the workshop mission and persona needs
+    State 2 provocative challenges about their idea:
+    1. Add a header "#### Provocative Challenges"
+    2. Focus on a technical limitation and an unintended consequence
+    3. Format as a numbered markdown list with a blank line before the list
+    4. Use bold (**word**) for emphasis on key words
+    5. Keep each statement under 15 words
     
-    Make your statements specific to their idea components and help them identify blind spots.`;
+    Be direct and challenging. Ensure your markdown formatting is correct.`;
   }
   else {
     // General response to user message
@@ -243,9 +294,11 @@ Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
     
     The user has sent this message: "${command}"
     
-    Please respond to their message, keeping your response focused on their idea and the context of their workshop. Be helpful, encouraging, and constructive. If appropriate, remind them they can use commands like /reflect, /creative, or /provoke for specific types of feedback.
-    
-    If they have only selected a few cards (or none), consider suggesting that they might want to explore adding more components to their idea to make it more comprehensive.`;
+    Respond concisely in 1-3 sentences (maximum 50 words). Format your response with proper markdown:
+    1. Use blank lines between paragraphs
+    2. Bold emphasis (**word**) for important points
+    3. Use markdown bullet points (- ) if making a list
+    4. Provide direct and specific advice related to their idea`;
   }
   
   try {
@@ -271,11 +324,91 @@ Scenario: "${workshop.scenario?.name} - ${workshop.scenario?.description}"
     }
     
     const data = await response.json() as OllamaResponse;
+    
+    // Process the card suggestions to ensure consistent formatting if this is a creative response
+    if (lowerCommand.startsWith('/creative')) {
+      return formatCardSuggestionResponse(data.response);
+    }
+    
     return data.response;
   } catch (error) {
     console.error('Error calling Ollama API:', error);
-    throw new Error('Failed to generate AI response. Please ensure Ollama is running and the mistral:instruct model is installed.');
+    throw new Error('Failed to generate AI response. Please ensure Ollama is running with mistral:instruct.');
   }
+};
+
+/**
+ * Format card suggestion responses to ensure consistent formatting
+ */
+const formatCardSuggestionResponse = (response: string): string => {
+  // First check if the response already follows the correct format
+  const alternativePattern = /###\s+Alternative\s+\d+/gi;
+  
+  if (!alternativePattern.test(response)) {
+    // If response doesn't follow the format, try to extract and reformat it
+    const alternatives: {name: string, cards: {[key: string]: string}}[] = [];
+    
+    // Look for patterns like "Alternative X: Name" or similar
+    const altNamePattern = /(?:alternative|alt)(?:\s+)?(\d+)(?:[:\s-]+)([^\n]+)/gi;
+    let altMatches;
+    
+    // Extract alternatives and their names
+    while ((altMatches = altNamePattern.exec(response)) !== null) {
+      // We don't need the alt number since we're ordering them sequentially
+      const altName = altMatches[2].trim();
+      
+      // Create a new alternative
+      alternatives.push({
+        name: altName,
+        cards: {}
+      });
+    }
+    
+    // If we couldn't find alternatives, try to create them manually
+    if (alternatives.length === 0) {
+      // Default to creating two alternatives with generic names
+      alternatives.push({name: "Variation 1", cards: {}});
+      alternatives.push({name: "Variation 2", cards: {}});
+    }
+    
+    // Now extract card types and their values
+    const cardTypes = ["thing", "sensor", "action", "feedback", "service"];
+    
+    // For each card type, look for matches in the response
+    cardTypes.forEach(type => {
+      const typePattern = new RegExp(`(?:${type}|\\*\\*${type}\\*\\*)[:\\s]+([^\\n]+)`, "gi");
+      const matches = [...response.matchAll(typePattern)];
+      
+      // Assign each match to an alternative
+      matches.forEach((match, index) => {
+        if (index < alternatives.length) {
+          alternatives[index].cards[type.toLowerCase()] = match[1].trim();
+        }
+      });
+    });
+    
+    // Rebuild the response in the correct format
+    let formattedResponse = "## Card Suggestions\n\n";
+    
+    alternatives.forEach((alt, index) => {
+      formattedResponse += `### Alternative ${index + 1}: ${alt.name}\n\n`;
+      
+      // Add all card types
+      cardTypes.forEach(type => {
+        formattedResponse += `**${type.charAt(0).toUpperCase() + type.slice(1)}**: ${alt.cards[type.toLowerCase()] || "Not specified"}\n`;
+      });
+      
+      // Add a blank line between alternatives
+      if (index < alternatives.length - 1) {
+        formattedResponse += "\n";
+      }
+    });
+    
+    return formattedResponse;
+  }
+  
+  // If it already has the correct format, return as is
+  return response;
 };
 
 /**
@@ -301,26 +434,19 @@ The participants have created an idea with these elements:
   The idea title is: "${idea.title}"
   Description: "${idea.description}"
   
-  Please create a coherent 8-step storyboard that outlines the user journey for this idea. Each step should be a concise single sentence describing what happens at that point in the user experience.
+  Create a simple 8-step storyboard. Each step must be a single sentence only (under 15 words).
   
-  The storyboard should follow this logical flow (but do NOT include these numbers in your response):
-  1. Introduction to the user/context
-  2. Initial interaction with the product/service
-  3. How the sensor/detection works (if applicable)
-  4. The action taken by the user or system (if applicable)
-  5. How the feedback is provided (if applicable)
-  6. How the service component works (if applicable)
-  7. Resolution or outcome
-  8. Benefits realized by the user
+  Steps should cover:
+  1. Initial context/need
+  2. First interaction
+  3. Sensing functionality
+  4. User/system action
+  5. Feedback mechanism
+  6. Service component
+  7. Resolution
+  8. Benefit
   
-  Make sure the storyboard aligns with:
-  - The workshop mission and goals
-  - The persona's needs and characteristics
-  - The specific scenario context
-  
-  Adapt this flow based on the actual components selected for the idea. Focus on creating a coherent narrative using the available components.
-  
-  Format your response as 8 separate steps, one per line, with no numbering or bullet points.`;
+  Output 8 steps, one per line, no numbering. Be extremely direct and concise.`;
   
   try {
     const response = await fetch(OLLAMA_API_URL, {
@@ -355,13 +481,24 @@ The participants have created an idea with these elements:
     
     // If we got fewer than 8 steps, add generic placeholders
     while (steps.length < 8) {
-      steps.push(`Step ${steps.length + 1}: Continue the user journey.`);
+      steps.push(`Step ${steps.length + 1}: Continue the journey.`);
     }
     
     return steps;
   } catch (error) {
-    console.error('Error calling Ollama API:', error);
-    throw new Error('Failed to generate storyboard. Please ensure Ollama is running and the mistral:instruct model is installed.');
+    console.error('Error generating storyboard:', error);
+    
+    // Return default steps if AI fails
+    return [
+      `${workshop?.persona?.name || 'User'} encounters a problem.`,
+      `They discover ${idea.title}.`,
+      `${idea.cardCombination.thing?.name || 'Device'} activates.`,
+      `${idea.cardCombination.sensor?.name || 'Sensors'} detect information.`,
+      `User performs ${idea.cardCombination.action?.name || 'action'}.`,
+      `${idea.cardCombination.feedback?.name || 'Feedback'} is provided.`,
+      `${idea.cardCombination.service?.name || 'System'} processes information.`,
+      `Problem is solved successfully.`
+    ];
   }
 };
 
@@ -371,8 +508,8 @@ The participants have created an idea with these elements:
 export const generateElevatorPitch = async (
   idea: Idea, 
   workshop: Workshop | null | undefined,
-  storyboardSteps: any[],
-  evaluationCriteria: any[]
+  storyboardSteps: { description: string }[],
+  evaluationCriteria: { criteriaCard: { name: string }, response: string }[]
 ): Promise<string> => {
   const selectedCards = getSelectedCardsList(idea);
   
@@ -407,16 +544,14 @@ The idea title is: "${idea.title}"
 Description: "${idea.description}"
 ${idea.refinements && idea.refinements.length > 0 ? `Refinements: ${idea.refinements.join(', ')}` : ''}${storyboardNarrative}${criteriaResponses}
 
-Based on all the information above, create a compelling elevator pitch for this idea. The elevator pitch should:
+Create a concise elevator pitch (75-100 words maximum) that:
 
-1. Clearly articulate the idea in a concise, compelling way
-2. Capture the essence of what the idea solves and why it matters
-3. Reference the specific cards, workshop context, and any available storyboard or evaluation insights
-4. Be structured in 3-5 short paragraphs with clear value proposition
-5. Be approximately 150-200 words in length
-6. Use professional but engaging language
+1. States the problem and solution in 1 sentence
+2. Mentions the core technology components
+3. States the primary benefit for users
+4. Is structured as 2 short paragraphs maximum
 
-The pitch should read as a polished, cohesive summary that could be presented to stakeholders or potential investors in about 30-60 seconds.`;
+Be extremely concise, direct, and impactful. Avoid filler words completely.`;
   
   try {
     const response = await fetch(OLLAMA_API_URL, {
@@ -446,10 +581,8 @@ The pitch should read as a polished, cohesive summary that could be presented to
     console.error('Error generating elevator pitch:', error);
     
     // Fallback elevator pitch if AI fails
-    return `${idea.title} is an innovative solution designed to address the needs of ${workshop?.persona?.name || 'users'} in ${workshop?.scenario?.name || 'various'} scenarios.
+    return `${idea.title} gives ${workshop?.persona?.name || 'users'} a solution using ${idea.cardCombination.thing?.name || 'technology'} and ${idea.cardCombination.sensor?.name || 'sensors'}.
 
-By leveraging ${idea.cardCombination.thing?.name || 'technological'} components with ${idea.cardCombination.sensor?.name || 'sensing'} capabilities, our solution offers a unique approach to ${workshop?.mission?.goal || 'solving problems'}.
-
-This solution provides significant benefits through intuitive interactions and meaningful feedback, ultimately delivering tangible value to users and stakeholders alike.`;
+It solves ${workshop?.mission?.goal || 'key problems'} quickly and effectively.`;
   }
 }; 

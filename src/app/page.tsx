@@ -365,7 +365,7 @@ export default function Home() {
                             <p><strong>Description:</strong> {customPersona.description}</p>
                           </div>
                         )}
-                      </div>
+        </div>
                       <div className="grid gap-2">
                         <label htmlFor="scenarioId" className="text-sm font-medium">Scenario</label>
                         <select 
