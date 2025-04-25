@@ -544,14 +544,14 @@ The idea title is: "${idea.title}"
 Description: "${idea.description}"
 ${idea.refinements && idea.refinements.length > 0 ? `Refinements: ${idea.refinements.join(', ')}` : ''}${storyboardNarrative}${criteriaResponses}
 
-Create a concise elevator pitch (75-100 words maximum) that:
+Create a concise elevator pitch (75-150 words maximum) that:
 
 1. States the problem and solution in 1 sentence
 2. Mentions the core technology components
 3. States the primary benefit for users
 4. Is structured as 2 short paragraphs maximum
 
-Be extremely concise, direct, and impactful. Avoid filler words completely.`;
+Be concise, direct, and impactful as well as convincing and engaging. Use **bold** for emphasis.`;
   
   try {
     const response = await fetch(OLLAMA_API_URL, {
