@@ -65,12 +65,12 @@ interface CardSelectionProps {
     action?: typeof actionCards[0];
     feedback?: typeof feedbackCards[0];
     service?: typeof serviceCards[0];
-    // New fields for multiple cards
     thingCards?: typeof thingCards[0][];
     sensorCards?: typeof sensorCards[0][];
     actionCards?: typeof actionCards[0][];
     feedbackCards?: typeof feedbackCards[0][];
     serviceCards?: typeof serviceCards[0][];
+    description: string;
   }) => void;
   initialCardCombination?: {
     thing?: typeof thingCards[0];
@@ -78,12 +78,12 @@ interface CardSelectionProps {
     action?: typeof actionCards[0];
     feedback?: typeof feedbackCards[0];
     service?: typeof serviceCards[0];
-    // New fields for multiple cards
     thingCards?: typeof thingCards[0][];
     sensorCards?: typeof sensorCards[0][];
     actionCards?: typeof actionCards[0][];
     feedbackCards?: typeof feedbackCards[0][];
     serviceCards?: typeof serviceCards[0][];
+    description?: string;
   };
   isEditing?: boolean;
 }
@@ -113,6 +113,9 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
 
   // Confirmation dialog for clear selection
   const [clearConfirmDialogOpen, setClearConfirmDialogOpen] = useState(false);
+  
+  // Idea description state
+  const [ideaDescription, setIdeaDescription] = useState(initialCardCombination?.description || '');
 
   // Effect to initialize selected cards when initialCardCombination changes
   useEffect(() => {
@@ -335,7 +338,10 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
 
   const isValid = () => {
     // Check if any cards have been selected (at least one in total)
-    return Object.values(selectedCards).some(categoryCards => categoryCards.length > 0);
+    const hasCards = Object.values(selectedCards).some(categoryCards => categoryCards.length > 0);
+    // Check if description is provided
+    const hasDescription = ideaDescription.trim().length > 0;
+    return hasCards && hasDescription;
   };
 
   const prepareCardCombination = () => {
@@ -402,6 +408,21 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
         </div>
       </div>
 
+      {/* Idea Description Field */}
+      <div className="space-y-2">
+        <Label htmlFor="idea-description">Describe your idea</Label>
+        <Textarea
+          id="idea-description"
+          placeholder="Explain how these cards work together to create your idea..."
+          value={ideaDescription}
+          onChange={(e) => setIdeaDescription(e.target.value)}
+          className="min-h-[100px]"
+        />
+        <p className="text-sm text-muted-foreground">
+          This description will help the AI understand your idea better and provide more meaningful feedback.
+        </p>
+      </div>
+
       <div className="flex justify-between">
         <Button 
           variant="outline" 
@@ -421,7 +442,10 @@ export function CardSelection({ onCombinationComplete, initialCardCombination, i
         </Button>
         
         <Button 
-          onClick={() => onCombinationComplete(prepareCardCombination())}
+          onClick={() => onCombinationComplete({
+            ...prepareCardCombination(),
+            description: ideaDescription
+          })}
           disabled={!isValid() || (isEditing && !hasCardCombinationChanged())}
         >
           {isEditing ? 'Update Idea' : 'Save Combination'}

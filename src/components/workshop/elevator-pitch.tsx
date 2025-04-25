@@ -9,6 +9,7 @@ import { Loader2, PencilLine } from 'lucide-react';
 import { generateElevatorPitch } from '@/lib/ollama-service';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ReactMarkdown from 'react-markdown';
 
 export function ElevatorPitch() {
   const { currentIdea, updateIdea, currentWorkshop } = useWorkshop();
@@ -17,6 +18,7 @@ export function ElevatorPitch() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const [isEditorVisible, setIsEditorVisible] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Update elevator pitch when current idea changes
   useEffect(() => {
@@ -78,6 +80,7 @@ export function ElevatorPitch() {
   const handleCreateManually = () => {
     setElevatorPitch(''); // Clear existing content
     setIsEditorVisible(true); // Ensure editor stays visible
+    setIsEditing(true); // Start in edit mode
     
     // Save the empty state to ensure consistency
     updateIdea(currentIdea.id, { elevatorPitch: '' });
@@ -141,14 +144,20 @@ export function ElevatorPitch() {
             </div>
           ) : (
             <div className="space-y-4">
-              <Textarea
-                id="elevator-pitch-textarea"
-                value={elevatorPitch}
-                onChange={(e) => handleElevatorPitchChange(e.target.value)}
-                placeholder="Enter your elevator pitch..."
-                rows={10}
-                className="min-h-[200px]"
-              />
+              {!isEditing ? (
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown>{elevatorPitch}</ReactMarkdown>
+                </div>
+              ) : (
+                <Textarea
+                  id="elevator-pitch-textarea"
+                  value={elevatorPitch}
+                  onChange={(e) => handleElevatorPitchChange(e.target.value)}
+                  placeholder="Enter your elevator pitch..."
+                  rows={10}
+                  className="min-h-[200px]"
+                />
+              )}
               
               <div className="flex justify-between">
                 <Button 
@@ -165,6 +174,15 @@ export function ElevatorPitch() {
                     'Regenerate with AI'
                   )}
                 </Button>
+                {elevatorPitch && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsEditing(!isEditing)}
+                  >
+                    <PencilLine className="mr-2 h-4 w-4" />
+                    {isEditing ? 'Preview' : 'Edit'}
+                  </Button>
+                )}
               </div>
             </div>
           )}

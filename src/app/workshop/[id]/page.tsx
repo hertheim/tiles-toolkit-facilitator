@@ -142,14 +142,26 @@ export default function WorkshopPage() {
   const workshopIdeas = ideas.filter(idea => idea.workshopId === currentWorkshop?.id);
   
   // Handle creating a new idea
-  const handleCreateIdea = (cardCombination: Record<string, CardType | CardType[]>) => {
+  const handleCreateIdea = (combination: {
+    thing?: CardType;
+    sensor?: CardType;
+    action?: CardType;
+    feedback?: CardType;
+    service?: CardType;
+    thingCards?: CardType[];
+    sensorCards?: CardType[];
+    actionCards?: CardType[];
+    feedbackCards?: CardType[];
+    serviceCards?: CardType[];
+    description: string;
+  }) => {
     if (!currentWorkshop) return;
     
     // Only update if we're explicitly in edit mode
     if (isEditingIdea && currentIdea) {
-      // Generate updated title and description based on new card combination
-      const primaryThingName = cardCombination.thing && (cardCombination.thing as CardType).name;
-      const primarySensorName = cardCombination.sensor && (cardCombination.sensor as CardType).name;
+      // Generate updated title based on new card combination
+      const primaryThingName = combination.thing?.name;
+      const primarySensorName = combination.sensor?.name;
       
       // Generate title based on card combination
       let title = currentIdea.title;
@@ -161,37 +173,22 @@ export default function WorkshopPage() {
         title = `${primarySensorName}`;
       }
       
-      // Get all selected cards for description
-      const allCards: CardType[] = [];
-      
-      // Add individual cards
-      if (cardCombination.thing) allCards.push(cardCombination.thing as CardType);
-      if (cardCombination.sensor) allCards.push(cardCombination.sensor as CardType);
-      if (cardCombination.action) allCards.push(cardCombination.action as CardType);
-      if (cardCombination.feedback) allCards.push(cardCombination.feedback as CardType);
-      if (cardCombination.service) allCards.push(cardCombination.service as CardType);
-      
-      // Generate description based on all cards
-      const description = allCards.length > 0
-        ? `An idea using ${allCards.map(card => card.name).join(', ')}`
-        : currentIdea.description;
-      
       // Update the existing idea with the new card combination and metadata
       workshop.updateIdea(currentIdea.id, {
-        cardCombination: cardCombination as {
-          thing?: CardType;
-          sensor?: CardType;
-          action?: CardType;
-          feedback?: CardType;
-          service?: CardType;
-          thingCards?: CardType[];
-          sensorCards?: CardType[];
-          actionCards?: CardType[];
-          feedbackCards?: CardType[];
-          serviceCards?: CardType[];
+        cardCombination: {
+          thing: combination.thing,
+          sensor: combination.sensor,
+          action: combination.action,
+          feedback: combination.feedback,
+          service: combination.service,
+          thingCards: combination.thingCards,
+          sensorCards: combination.sensorCards,
+          actionCards: combination.actionCards,
+          feedbackCards: combination.feedbackCards,
+          serviceCards: combination.serviceCards,
         },
         title,
-        description,
+        description: combination.description,
         cardsUpdated: true,
       });
       
@@ -205,8 +202,8 @@ export default function WorkshopPage() {
     }
     
     // Create a new idea
-    const primaryThingName = cardCombination.thing && (cardCombination.thing as CardType).name;
-    const primarySensorName = cardCombination.sensor && (cardCombination.sensor as CardType).name;
+    const primaryThingName = combination.thing?.name;
+    const primarySensorName = combination.sensor?.name;
     
     // Generate title based on card combination or use generic title
     let title = `New Idea ${workshopIdeas.length + 1}`;
@@ -218,40 +215,26 @@ export default function WorkshopPage() {
       title = `${primarySensorName}`;
     }
     
-    // Get all selected cards for description
-    const allCards: CardType[] = [];
-    
-    // Add individual cards
-    if (cardCombination.thing) allCards.push(cardCombination.thing as CardType);
-    if (cardCombination.sensor) allCards.push(cardCombination.sensor as CardType);
-    if (cardCombination.action) allCards.push(cardCombination.action as CardType);
-    if (cardCombination.feedback) allCards.push(cardCombination.feedback as CardType);
-    if (cardCombination.service) allCards.push(cardCombination.service as CardType);
-    
-    // Generate description based on all cards
-    const description = allCards.length > 0
-      ? `An idea using ${allCards.map(card => card.name).join(', ')}`
-      : '';
-    
     const newIdea = createIdea({
       title,
-      description,
-      cardCombination: cardCombination as {
-        thing?: CardType;
-        sensor?: CardType;
-        action?: CardType;
-        feedback?: CardType;
-        service?: CardType;
-        thingCards?: CardType[];
-        sensorCards?: CardType[];
-        actionCards?: CardType[];
-        feedbackCards?: CardType[];
-        serviceCards?: CardType[];
+      description: combination.description,
+      cardCombination: {
+        thing: combination.thing,
+        sensor: combination.sensor,
+        action: combination.action,
+        feedback: combination.feedback,
+        service: combination.service,
+        thingCards: combination.thingCards,
+        sensorCards: combination.sensorCards,
+        actionCards: combination.actionCards,
+        feedbackCards: combination.feedbackCards,
+        serviceCards: combination.serviceCards,
       },
       refinements: [],
     });
     
     setCurrentIdea(newIdea);
+    setIsEditingIdea(false); // Reset editing state
     toast.success('New idea created');
     
     // Move to the next phase if we're in ideation
