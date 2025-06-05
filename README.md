@@ -25,7 +25,7 @@ This digital ideation tool is integrated with the physical Tiles Toolkit, design
 #### 2. Idea Refinement & Chat
 
 - Interactive AI chat interface for idea refinement using Mistral AI
-- Use commands like `/reflect`, `/creative`, and `/provoke` to get different types of AI feedback
+- Use commands like `/reflect`, `/card suggestions`, and `/provoke` to get different types of AI feedback
 - AI suggests alternative cards and approaches to expand thinking
 - All interactions automatically saved as refinements
 - Persistent chat history tied to each idea
@@ -98,7 +98,7 @@ This digital ideation tool is integrated with the physical Tiles Toolkit, design
 3. Generate ideas using the card selection interface
 4. Refine ideas through AI-guided chat
    - Use `/reflect` to get reflective questions
-   - Use `/creative` to get alternative card suggestions
+   - Use `/card suggestion` to get alternative card suggestions
    - Use `/provoke` to challenge your assumptions
 5. Create a storyboard to visualize the user journey
 6. Evaluate ideas against criteria and generate an elevator pitch
